@@ -1,0 +1,20 @@
+{
+  "name": "excel-to-word-converter-backend",
+  "version": "1.0.0",
+  "description": "Бэкенд для конвертера Excel в Word",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "docx": "^7.3.0",
+    "exceljs": "^4.3.0",
+    "express": "^4.17.1",
+    "multer": "^1.4.3"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  }
+}
