@@ -13,11 +13,14 @@ function convertMillimetersToPixels(mm) {
 
 exports.convertExcelToWord = async (filePath) => {
   console.log('Начало процесса конвертации');
+  console.log('Путь к файлу:', filePath);
 
   try {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(filePath);
     console.log('Excel файл успешно прочитан');
+    console.log('Количество листов:', workbook.worksheets.length);
+    console.log('Имена листов:', workbook.worksheets.map(ws => ws.name));
 
     const doc = new docx.Document({
       sections: []
@@ -197,7 +200,7 @@ exports.convertExcelToWord = async (filePath) => {
     // Получаем текущую дату
     const currentDate = new Date().toLocaleDateString('ru-RU');
 
-    // Добавляем одну секцию со всем содержимым и колонтитулами
+    // Добвляем одну секцию со всем содержимым и колонтитулами
     doc.addSection({
       properties: {
         page: {
@@ -237,7 +240,7 @@ exports.convertExcelToWord = async (filePath) => {
       children: children,
     });
 
-    console.log('Таблица, изображения и колонтитулы добавлены в документ Word');
+    console.log('Т��блица, изображения и колонтитулы добавлены в документ Word');
 
     console.log('Начало создания буфера документа Word');
     const buffer = await docx.Packer.toBuffer(doc);
@@ -249,7 +252,33 @@ exports.convertExcelToWord = async (filePath) => {
     return buffer;
   } catch (error) {
     console.error('Ошибка в процессе конвертации:', error);
-    throw error;
+    console.error('Стек вызовов:', error.stack);
+    
+    // Добавьте больше информации об ошибке
+    if (error instanceof ExcelJS.Error) {
+      console.error('Ошибка ExcelJS:', error.message);
+    } else if (error instanceof docx.Error) {
+      console.error('Ошибка docx:', error.message);
+    }
+    
+    // Проверяем существование файла
+    if (!fs.existsSync(filePath)) {
+      console.error('Файл не найден:', filePath);
+    } else {
+      console.log('Размер файла:', fs.statSync(filePath).size, 'байт');
+    }
+    
+    throw new Error(`Ошибка при конвертации файла: ${error.message}`);
+  } finally {
+    // Убедимся, что временный файл удаляется даже при возникновении ошибки
+    try {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        console.log('Временный файл Excel удален');
+      }
+    } catch (unlinkError) {
+      console.error('Ошибка при удалении временного файла:', unlinkError);
+    }
   }
 };
 

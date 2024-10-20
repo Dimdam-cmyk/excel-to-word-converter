@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Container, Typography, Button, CircularProgress } from '@material-ui/core';
+import { Container, Typography, Button, CircularProgress, Snackbar } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
+import MuiAlert from '@material-ui/lab/Alert';
 import FileUploader from './components/FileUploader';
 import { convertExcelToWord } from './services/api';
 
@@ -16,25 +17,35 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
+function Alert(props) {
+  return <MuiAlert elevation={6} variant="filled" {...props} />;
+}
+
 function App() {
   const classes = useStyles();
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleFileChange = (selectedFile) => {
+    console.log('Файл выбран:', selectedFile.name);
     setFile(selectedFile);
   };
 
   const handleConvert = async () => {
     if (!file) {
-      alert('Пожалуйста, выберите файл Excel');
+      setError('Пожалуйста, выберите файл Excel');
       return;
     }
 
     setLoading(true);
+    setError(null);
 
     try {
+      console.log('Начало конвертации файла:', file.name);
       const response = await convertExcelToWord(file);
+      console.log('Ответ получен:', response);
+
       const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -42,12 +53,20 @@ function App() {
       a.download = 'converted.docx';
       a.click();
       window.URL.revokeObjectURL(url);
+      console.log('Файл успешно сконвертирован и скачан');
     } catch (error) {
       console.error('Ошибка при конвертации:', error);
-      alert('Произошла ошибка при конвертации файла');
+      setError(error.response?.data || 'Произошла ошибка при конвертации файла');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCloseError = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setError(null);
   };
 
   return (
@@ -65,6 +84,11 @@ function App() {
       >
         {loading ? <CircularProgress size={24} /> : 'Конвертировать'}
       </Button>
+      <Snackbar open={!!error} autoHideDuration={6000} onClose={handleCloseError}>
+        <Alert onClose={handleCloseError} severity="error">
+          {error}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 }

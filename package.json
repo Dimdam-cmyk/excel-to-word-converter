@@ -4,6 +4,17 @@
     "docxtemplater": "^3.51.0",
     "image-size": "^1.1.1",
     "pizzip": "^3.1.7",
+    "pm2": "^5.4.2",
     "sharp": "^0.33.5"
+  },
+  "scripts": {
+    "start": "pm2 start ecosystem.config.js",
+    "stop": "pm2 stop ecosystem.config.js",
+    "build": "cd frontend && npm run build",
+    "install-deps": "npm install && cd frontend && npm install && cd ../backend && npm install",
+    "dev": "concurrently \"cd backend && npm run dev\" \"cd frontend && npm start\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1"
   }
 }
