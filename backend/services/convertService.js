@@ -11,7 +11,7 @@ function convertMillimetersToPixels(mm) {
   return Math.round(mm * 3.78); // 1 мм = 3.78 пикселей при 96 DPI
 }
 
-exports.convertExcelToWord = async (filePath) => {
+exports.convertExcelToWord = async (filePath, discountPercentage) => {
   console.log('Начало процесса конвертации');
   console.log('Путь к файлу:', filePath);
 
@@ -23,6 +23,18 @@ exports.convertExcelToWord = async (filePath) => {
     console.log('Имена листов:', workbook.worksheets.map(ws => ws.name));
 
     const doc = new docx.Document({
+      styles: {
+        paragraphStyles: [
+          {
+            id: "italicStyle",
+            name: "Italic Style",
+            basedOn: "Normal",
+            run: {
+              italics: true,
+            },
+          },
+        ],
+      },
       sections: []
     });
 
@@ -86,37 +98,132 @@ exports.convertExcelToWord = async (filePath) => {
 
     console.log('Начало обработки строк Excel');
 
+    // Группируем строки по значению в столбце "Наименование на фасаде"
+    let groupedRows = [];
+    let currentGroup = [];
+    let currentName = '';
+
     for (let i = 2; i <= worksheet.rowCount; i++) {
       const row = worksheet.getRow(i);
-      const cellValue = row.getCell('A').value;
+      const name = getCellValue(row.getCell('A'));
       
-      if (cellValue && cellValue.toString().includes('Итого стоимость производства составляет')) {
-        console.log('Найдена строка с итоговой суммой');
-        totalSum = parseFloat(getCellValue(row.getCell('I')));
+      if (name === currentName) {
+        currentGroup.push(row);
+      } else {
+        if (currentGroup.length > 0) {
+          groupedRows.push(currentGroup);
+        }
+        currentName = name;
+        currentGroup = [row];
+      }
+      
+      // Проверяем, достигли ли мы конца данных
+      if (name && name.toString().includes('Итого стоимость производства составляет')) {
         break;
       }
-
-      if (cellValue && cellValue.toString().includes('В стоимость включено:')) {
-        console.log('Достигнут конец обрабатываемых данных');
-        break;
-      }
-
-      const tableRow = new docx.TableRow({
-        children: [
-          new docx.TableCell({ children: [new docx.Paragraph({ text: getCellValue(row.getCell('A')) })] }),
-          new docx.TableCell({ children: [new docx.Paragraph({ text: getCellValue(row.getCell('B')) })] }),
-          new docx.TableCell({ children: [new docx.Paragraph({ text: getCellValue(row.getCell('G')) })] }),
-          new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(getCellValue(row.getCell('H'))) })] }),
-          new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(getCellValue(row.getCell('I'))) })] }),
-          new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(getCellValue(row.getCell('J')), 3) })] }),
-        ],
-      });
-
-      tableRows.push(tableRow);
     }
+
+    // Добавляем последнюю группу, если она есть
+    if (currentGroup.length > 0) {
+      groupedRows.push(currentGroup);
+    }
+
+    // Создаем строки таблицы Word с объединенными ячейками
+    let isEvenRow = false; // Флаг для чередования цвета фона
+
+    groupedRows.forEach(group => {
+      const firstRow = group[0];
+      const name = getCellValue(firstRow.getCell('A'));
+      
+      const mergedCell = new docx.TableCell({
+        children: [new docx.Paragraph({ 
+          text: name,
+          alignment: docx.AlignmentType.CENTER,
+          style: "italicStyle"
+        })],
+        rowSpan: group.length,
+        verticalAlign: docx.VerticalAlign.CENTER,
+      });
+      
+      let blockSum = 0; // Переменная для хранения суммы блока
+      
+      group.forEach((row, index) => {
+        isEvenRow = !isEvenRow; // Меняем флаг для каждой строки
+        const shading = isEvenRow ? { fill: "F2F2F2" } : undefined; // Светло-серый цвет для четных строк
+
+        const tableRow = new docx.TableRow({
+          children: index === 0 ? 
+            [
+              mergedCell,
+              new docx.TableCell({ children: [new docx.Paragraph({ text: getCellValue(row.getCell('B')) })], shading }),
+              new docx.TableCell({ children: [new docx.Paragraph({ text: getCellValue(row.getCell('G')) })], shading }),
+              new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(getCellValue(row.getCell('H'))) })], shading }),
+              new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(getCellValue(row.getCell('I'))) })], shading }),
+              new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(getCellValue(row.getCell('J')), 3) })], shading }),
+            ] :
+            [
+              new docx.TableCell({ children: [new docx.Paragraph({ text: getCellValue(row.getCell('B')) })], shading }),
+              new docx.TableCell({ children: [new docx.Paragraph({ text: getCellValue(row.getCell('G')) })], shading }),
+              new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(getCellValue(row.getCell('H'))) })], shading }),
+              new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(getCellValue(row.getCell('I'))) })], shading }),
+              new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(getCellValue(row.getCell('J')), 3) })], shading }),
+            ],
+        });
+        
+        tableRows.push(tableRow);
+        
+        // Добавляем значение из столбца "Сумма" к общей сумме блока
+        blockSum += parseFloat(getCellValue(row.getCell('I'))) || 0;
+      });
+      
+      // Проверяем, не является ли это строкой с итоговой суммой
+      const firstCellValue = getCellValue(firstRow.getCell('A'));
+      if (firstCellValue.includes('Итого стоимость производства составляет')) {
+        totalSum = parseFloat(getCellValue(firstRow.getCell('I'))) || 0;
+        // Добавляем эту строку в таблицу без изменений
+        const totalSumRow = new docx.TableRow({
+          children: [
+            new docx.TableCell({ children: [new docx.Paragraph({ text: firstCellValue, bold: true })], columnSpan: 5 }),
+            new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(totalSum), bold: true, alignment: docx.AlignmentType.RIGHT })] }),
+          ],
+        });
+        tableRows.push(totalSumRow);
+        return; // Прерываем обработку этой группы
+      }
+      
+      // Добавляем итоговую строку для блока
+      const totalRow = new docx.TableRow({
+        children: [
+          new docx.TableCell({ 
+            children: [new docx.Paragraph({ 
+              text: 'Итого:',
+              alignment: docx.AlignmentType.LEFT,
+              bold: true
+            })],
+            columnSpan: 4,
+          }),
+          new docx.TableCell({ 
+            children: [new docx.Paragraph({ 
+              text: formatNumber(blockSum),
+              alignment: docx.AlignmentType.CENTER,
+              bold: true
+            })],
+          }),
+          new docx.TableCell({ children: [new docx.Paragraph({ text: '' })] }),
+        ],
+        shading: { fill: "D9D9D9" }, // Серый цвет для строки "Итого"
+      });
+      
+      tableRows.push(totalRow);
+      isEvenRow = false; // Сбрасываем флаг после итоговой строки
+    });
 
     console.log(`Обработано ${tableRows.length} строк`);
 
+    // Удаляем последнюю строку из tableRows, так как она содержит итоговую сумму
+    tableRows.pop();
+
+    // Добавляем таблицу
     const table = new docx.Table({
       rows: tableRows,
       width: {
@@ -132,13 +239,44 @@ exports.convertExcelToWord = async (filePath) => {
       new docx.Paragraph({
         children: [
           new docx.TextRun({
-            text: `Итого стоимость производства составляет ${formatNumberRounded(totalSum)} руб.`,
+            text: `Итого стоимость производства составляет ${formatNumber(totalSum)} руб.`,
             bold: true,
           }),
         ],
         spacing: { before: 400, after: 400 },
       })
     );
+
+    // Добавляем информацию о скидке, если она применяется
+    let discountedTotal = totalSum;
+    if (discountPercentage) {
+      const discountAmount = totalSum * (discountPercentage / 100);
+      discountedTotal = totalSum - discountAmount;
+
+      children.push(
+        new docx.Paragraph({
+          children: [
+            new docx.TextRun({
+              text: `Цена со скидкой ${discountPercentage}%: ${formatNumber(discountedTotal)} руб.`,
+              bold: true,
+            }),
+          ],
+          spacing: { before: 200, after: 200 },
+        })
+      );
+
+      children.push(
+        new docx.Paragraph({
+          children: [
+            new docx.TextRun({
+              text: `Скидка составила: ${formatNumber(discountAmount)} руб.`,
+              bold: true,
+            }),
+          ],
+          spacing: { before: 200, after: 400 },
+        })
+      );
+    }
 
     // Добавляем дополнительную информацию из листа "Комплекты"
     const komplektyWorksheet = workbook.getWorksheet('Комплекты');
@@ -152,9 +290,15 @@ exports.convertExcelToWord = async (filePath) => {
       for (const info of additionalInfo) {
         let foundRow = komplektyWorksheet.getRows(1, komplektyWorksheet.rowCount).find(row => row.getCell('A').value === info.label);
         if (foundRow) {
-          const value = getCellValue(foundRow.getCell(info.column));
+          let value = parseFloat(getCellValue(foundRow.getCell(info.column)));
+          
+          // Применяем скидку к ценам за кв.м., если скидка указана
+          if (discountPercentage && (info.label.includes('Цена 1 кв.м.'))) {
+            value = value * (1 - discountPercentage / 100);
+          }
+          
           children.push(new docx.Paragraph({ 
-            text: `${info.label} ${formatNumberRounded(value)}`,
+            text: `${info.label} ${formatNumberRounded(value)}${info.label.includes('Цена') ? ' (со скидкой)' : ''}`,
             spacing: { before: 200, after: 200 }
           }));
         }
@@ -240,7 +384,7 @@ exports.convertExcelToWord = async (filePath) => {
       children: children,
     });
 
-    console.log('Т��блица, изображения и колонтитулы добавлены в документ Word');
+    console.log('Тблица, изображения и колонтитулы добавлены в документ Word');
 
     console.log('Начало создания буфера документа Word');
     const buffer = await docx.Packer.toBuffer(doc);

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Container, Typography, Button, CircularProgress, Snackbar } from '@material-ui/core';
+import { Container, Typography, Button, CircularProgress, Snackbar, Checkbox, TextField } from '@material-ui/core';
 import { makeStyles } from '@material-ui/core/styles';
 import MuiAlert from '@material-ui/lab/Alert';
 import FileUploader from './components/FileUploader';
@@ -15,6 +15,13 @@ const useStyles = makeStyles((theme) => ({
   button: {
     marginTop: theme.spacing(2),
   },
+  checkbox: {
+    marginTop: theme.spacing(2),
+  },
+  discountInput: {
+    marginTop: theme.spacing(2),
+    width: '100%',
+  },
 }));
 
 function Alert(props) {
@@ -26,6 +33,8 @@ function App() {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [applyDiscount, setApplyDiscount] = useState(false);
+  const [discountPercentage, setDiscountPercentage] = useState('');
 
   const handleFileChange = (selectedFile) => {
     console.log('Файл выбран:', selectedFile.name);
@@ -43,7 +52,7 @@ function App() {
 
     try {
       console.log('Начало конвертации файла:', file.name);
-      const response = await convertExcelToWord(file);
+      const response = await convertExcelToWord(file, applyDiscount ? discountPercentage : null);
       console.log('Ответ получен:', response);
 
       const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
@@ -75,6 +84,25 @@ function App() {
         Конвертер Excel в Word
       </Typography>
       <FileUploader onFileChange={handleFileChange} />
+      <div className={classes.checkbox}>
+        <Checkbox
+          checked={applyDiscount}
+          onChange={(e) => setApplyDiscount(e.target.checked)}
+          color="primary"
+        />
+        <Typography component="span">Добавить скидку</Typography>
+      </div>
+      {applyDiscount && (
+        <TextField
+          className={classes.discountInput}
+          label="Процент скидки"
+          type="number"
+          value={discountPercentage}
+          onChange={(e) => setDiscountPercentage(e.target.value)}
+          variant="outlined"
+          size="small"
+        />
+      )}
       <Button
         variant="contained"
         color="primary"
