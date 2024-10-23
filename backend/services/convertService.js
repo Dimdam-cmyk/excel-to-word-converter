@@ -26,6 +26,20 @@ exports.convertExcelToWord = async (filePath, discountPercentage) => {
       styles: {
         paragraphStyles: [
           {
+            id: "totalRowStyle",
+            name: "Total Row Style",
+            basedOn: "Normal",
+            next: "Normal",
+            quickFormat: true,
+            run: {
+              size: 22, // 11 пунктов = 22 half-points
+              bold: true,
+            },
+            paragraph: {
+              alignment: docx.AlignmentType.CENTER,
+            },
+          },
+          {
             id: "italicStyle",
             name: "Italic Style",
             basedOn: "Normal",
@@ -71,7 +85,7 @@ exports.convertExcelToWord = async (filePath, discountPercentage) => {
     // Добавляем заголовок
     children.push(
       new docx.Paragraph({
-        text: "Коммерческое предложение на поставку изделий из полимербетона ARHIO",
+        text: "Коммерческое предложение на поставку изделий из полимербетна ARHIO",
         alignment: docx.AlignmentType.CENTER,
         spacing: { after: 300, before: 0 },
         style: "Heading1"
@@ -279,7 +293,7 @@ exports.convertExcelToWord = async (filePath, discountPercentage) => {
         const row = izdeliyaWorksheet.getRow(i);
         const cellA = getCellValue(row.getCell('A'));
         if (!cellA) {
-          console.log(`Достигнут конец данных на строке ${i}`);
+          console.log(`Достигнут конец даннх на строке ${i}`);
           break;
         }
 
@@ -294,6 +308,17 @@ exports.convertExcelToWord = async (filePath, discountPercentage) => {
         totalL += parseFloat(getCellValue(row.getCell('L'))) || 0;
         totalN += parseFloat(getCellValue(row.getCell('N'))) || 0;
 
+        // Применяем скидку к значениям в столбцах M, N, O и V
+        const originalM = parseFloat(getCellValue(row.getCell('M'))) || 0;
+        const originalN = parseFloat(getCellValue(row.getCell('N'))) || 0;
+        const originalO = parseFloat(getCellValue(row.getCell('O'))) || 0;
+        const originalV = parseFloat(getCellValue(row.getCell('V'))) || 0;
+        
+        const discountedM = discountPercentage ? originalM * (1 - discountPercentage / 100) : originalM;
+        const discountedN = discountPercentage ? originalN * (1 - discountPercentage / 100) : originalN;
+        const discountedO = discountPercentage ? originalO * (1 - discountPercentage / 100) : originalO;
+        const discountedV = discountPercentage ? originalV * (1 - discountPercentage / 100) : originalV;
+
         const tableRow = new docx.TableRow({
           children: [
             new docx.TableCell({ children: [new docx.Paragraph({ text: getCellValue(row.getCell('A')), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
@@ -303,10 +328,10 @@ exports.convertExcelToWord = async (filePath, discountPercentage) => {
             new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(getCellValue(row.getCell('I')), 2), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
             new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(getCellValue(row.getCell('K')), 2), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
             new docx.TableCell({ children: [new docx.Paragraph({ text: getCellValue(row.getCell('L')), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
-            new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(getCellValue(row.getCell('M')), 2), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading: { fill: "FFE699" } }),
-            new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(getCellValue(row.getCell('N')), 2), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
-            new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(getCellValue(row.getCell('O')), 2), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading: { fill: "FFE699" } }),
-            new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(getCellValue(row.getCell('V')), 2), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
+            new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(discountedM, 2), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading: { fill: "FFE699" } }),
+            new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(discountedN, 2), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
+            new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(discountedO, 2), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading: { fill: "FFE699" } }),
+            new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(discountedV, 2), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
           ],
         });
         tableRows.push(tableRow);
@@ -316,18 +341,35 @@ exports.convertExcelToWord = async (filePath, discountPercentage) => {
       // Добавляем итоговую строку
       const totalTableRow = new docx.TableRow({
         children: [
-          new docx.TableCell({ children: [new docx.Paragraph({ text: '' })], columnSpan: 3 }),
+          new docx.TableCell({ children: [new docx.Paragraph({ text: '', bold: true })], columnSpan: 3 }),
           new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(totalH, 0), bold: true, alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER }),
           new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(totalI, 2), bold: true, alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER }),
           new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(totalK, 2), bold: true, alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER }),
           new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(totalL, 0), bold: true, alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER }),
-          new docx.TableCell({ children: [new docx.Paragraph({ text: '' })], alignment: docx.AlignmentType.CENTER }),
-          new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(totalN, 2), bold: true, alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER }),
-          new docx.TableCell({ children: [new docx.Paragraph({ text: '' })], alignment: docx.AlignmentType.CENTER }),
-          new docx.TableCell({ children: [new docx.Paragraph({ text: '' })], alignment: docx.AlignmentType.CENTER }),
+          new docx.TableCell({ children: [new docx.Paragraph({ text: '', bold: true })], alignment: docx.AlignmentType.CENTER }),
+          new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(totalN * (1 - discountPercentage / 100), 2), bold: true, alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER }),
+          new docx.TableCell({ children: [new docx.Paragraph({ text: '', bold: true })], alignment: docx.AlignmentType.CENTER }),
+          new docx.TableCell({ children: [new docx.Paragraph({ text: '', bold: true })], alignment: docx.AlignmentType.CENTER }),
         ],
-        shading: { fill: "D9D9D9" },
+        height: {
+          value: 400,
+          rule: docx.HeightRule.ATLEAST,
+        },
       });
+
+      // Применяем жирный шрифт для всех ячеек в итоговой строке
+      if (totalTableRow.children) {
+        totalTableRow.children.forEach(cell => {
+          if (cell && cell.children) {
+            cell.children.forEach(paragraph => {
+              if (paragraph && paragraph.options) {
+                paragraph.options.bold = true;
+              }
+            });
+          }
+        });
+      }
+
       tableRows.push(totalTableRow);
 
       console.log('Создание таблицы');
@@ -531,7 +573,7 @@ exports.convertExcelToWord = async (filePath, discountPercentage) => {
     try {
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
-        console.log('Временный файл Excel удален');
+        console.log('Времнный файл Excel удален');
       }
     } catch (unlinkError) {
       console.error('Ошибка при удалении временного файла:', unlinkError);
@@ -560,3 +602,4 @@ function formatNumberRounded(value) {
   if (isNaN(num)) return value;
   return Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 }
+
