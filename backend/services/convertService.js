@@ -100,21 +100,6 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
     let tableRows = [];
     let totalSum = 0;
 
-    // Добавляем заголовок таблицы только для полной версии
-    if (!makeShortVersion) {
-      const headerRow = new docx.TableRow({
-        children: [
-          new docx.TableCell({ children: [new docx.Paragraph({ text: 'Наименование на фасаде', bold: true })], alignment: docx.AlignmentType.CENTER }),
-          new docx.TableCell({ children: [new docx.Paragraph({ text: 'Номенклатура', bold: true })], alignment: docx.AlignmentType.CENTER }),
-          new docx.TableCell({ children: [new docx.Paragraph({ text: 'Кол-во изделий, шт.', bold: true })], alignment: docx.AlignmentType.CENTER }),
-          new docx.TableCell({ children: [new docx.Paragraph({ text: 'Цена, руб.', bold: true })], alignment: docx.AlignmentType.CENTER }),
-          new docx.TableCell({ children: [new docx.Paragraph({ text: 'Сумма, руб.', bold: true })], alignment: docx.AlignmentType.CENTER }),
-          new docx.TableCell({ children: [new docx.Paragraph({ text: 'Площадь развёртки, м2', bold: true })], alignment: docx.AlignmentType.CENTER }),
-        ],
-      });
-      tableRows.push(headerRow);
-    }
-
     console.log('Начало обработки строк Excel');
 
     // Группируем строки по значению в столбце "Наименование на фасаде"
@@ -122,7 +107,21 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
     let currentGroup = [];
     let currentName = '';
 
-    for (let i = 2; i <= worksheet.rowCount; i++) {
+    // Добавляем программный заголовок таблицы
+    const headerRow = new docx.TableRow({
+      children: [
+        new docx.TableCell({ children: [new docx.Paragraph({ text: 'Наименование на фасаде', bold: true })], alignment: docx.AlignmentType.CENTER }),
+        new docx.TableCell({ children: [new docx.Paragraph({ text: 'Номенклатура', bold: true })], alignment: docx.AlignmentType.CENTER }),
+        new docx.TableCell({ children: [new docx.Paragraph({ text: 'Кол-во изделий, шт.', bold: true })], alignment: docx.AlignmentType.CENTER }),
+        new docx.TableCell({ children: [new docx.Paragraph({ text: 'Цена, руб.', bold: true })], alignment: docx.AlignmentType.CENTER }),
+        new docx.TableCell({ children: [new docx.Paragraph({ text: 'Сумма, руб.', bold: true })], alignment: docx.AlignmentType.CENTER }),
+        new docx.TableCell({ children: [new docx.Paragraph({ text: 'Площадь развёртки, м2', bold: true })], alignment: docx.AlignmentType.CENTER }),
+      ],
+    });
+    tableRows.push(headerRow);
+
+    // Начинаем чтение с 5-й строки
+    for (let i = 5; i <= worksheet.rowCount; i++) {
       const row = worksheet.getRow(i);
       const name = getCellValue(row.getCell('A'));
       
@@ -580,7 +579,7 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
         default: new docx.Footer({
           children: [
             new docx.Paragraph({
-              text: "Предложение действительно 25 дней. Расчет является предварительным. Для окончательного расчета требуется проектирование.",
+              text: "Предложение действительно 25 дней. Расчет является предварительным. Для окончательног расчета требуется проектирование.",
               alignment: docx.AlignmentType.CENTER,
             }),
           ],

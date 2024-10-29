@@ -51,6 +51,16 @@ app.use((err, req, res, next) => {
   res.status(500).send('Что-то пошло не так!');
 });
 
+process.on('uncaughtException', (err) => {
+    console.error('Необработанная ошибка:', err);
+    // Логируем ошибку, но не завершаем процесс
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Необработанное отклонение промиса:', reason);
+    // Логируем ошибку, но не завершаем процесс
+});
+
 app.listen(port, '0.0.0.0', () => {
   console.log(`Server is running on port ${port}`);
 });
