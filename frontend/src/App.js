@@ -35,6 +35,7 @@ function App() {
   const [error, setError] = useState(null);
   const [applyDiscount, setApplyDiscount] = useState(false);
   const [discountPercentage, setDiscountPercentage] = useState('');
+  const [makeShortVersion, setMakeShortVersion] = useState(false);
 
   const handleFileChange = (selectedFile) => {
     console.log('Файл выбран:', selectedFile.name);
@@ -52,7 +53,7 @@ function App() {
 
     try {
       console.log('Начало конвертации файла:', file.name);
-      const response = await convertExcelToWord(file, applyDiscount ? discountPercentage : null);
+      const response = await convertExcelToWord(file, applyDiscount ? discountPercentage : null, makeShortVersion);
       console.log('Ответ получен:', response);
 
       const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
@@ -103,6 +104,14 @@ function App() {
           size="small"
         />
       )}
+      <div className={classes.checkbox}>
+        <Checkbox
+          checked={makeShortVersion}
+          onChange={(e) => setMakeShortVersion(e.target.checked)}
+          color="primary"
+        />
+        <Typography component="span">Сделать сокращ. КП</Typography>
+      </div>
       <Button
         variant="contained"
         color="primary"

@@ -2,12 +2,14 @@ import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://176.124.219.69:5001/api';
 
-export const convertExcelToWord = async (file, discountPercentage) => {
+export const convertExcelToWord = async (file, discountPercentage, makeShortVersion) => {
   const formData = new FormData();
   formData.append('file', file);
+  formData.append('originalFileName', file.name);
   if (discountPercentage !== null) {
     formData.append('discountPercentage', discountPercentage);
   }
+  formData.append('makeShortVersion', makeShortVersion);
 
   try {
     const response = await axios.post(`${API_URL}/convert`, formData, {

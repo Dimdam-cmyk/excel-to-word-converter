@@ -13,7 +13,10 @@ router.post('/', async (req, res) => {
     console.log('Файл получен:', req.file);
     console.log('Начало конвертации файла');
     const discountPercentage = req.body.discountPercentage ? parseFloat(req.body.discountPercentage) : null;
-    const buffer = await convertService.convertExcelToWord(req.file.path, discountPercentage);
+    const makeShortVersion = req.body.makeShortVersion === 'true';
+    const originalFileName = req.body.originalFileName;
+
+    const buffer = await convertService.convertExcelToWord(req.file.path, discountPercentage, makeShortVersion, originalFileName);
     console.log('Конвертация завершена успешно');
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
@@ -22,7 +25,6 @@ router.post('/', async (req, res) => {
     console.log('Файл отправлен клиенту');
   } catch (error) {
     console.error('Ошибка при конвертации:', error);
-    console.error('Стек вызовов ошибки:', error.stack);
     res.status(500).send(`Произошла ошибка при конвертации файла: ${error.message}`);
   }
 });

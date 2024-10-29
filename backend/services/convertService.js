@@ -11,9 +11,10 @@ function convertMillimetersToPixels(mm) {
   return Math.round(mm * 3.78); // 1 мм = 3.78 пикселей при 96 DPI
 }
 
-exports.convertExcelToWord = async (filePath, discountPercentage) => {
+exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersion, originalFileName) => {
   console.log('Начало процесса конвертации');
   console.log('Путь к файлу:', filePath);
+  console.log('Оригинальное имя файла:', originalFileName);
 
   try {
     const workbook = new ExcelJS.Workbook();
@@ -81,11 +82,13 @@ exports.convertExcelToWord = async (filePath, discountPercentage) => {
     } else {
       console.log('Файл изображения шапки не найден:', headerImagePath);
     }
+    // Получаем имя файла без расширения и первые 10 символов
+    const fileId = originalFileName.replace('.xlsx', '').slice(0, 10);
 
-    // Добавляем заголовок
+    // Добавляем заголовок с идентификатором файла
     children.push(
       new docx.Paragraph({
-        text: "Коммерческое предложение на поставку изделий из полимербетна ARHIO",
+        text: `Коммерческое предложение на поставку изделий из полимербетона ARHIO по проекту ${fileId}`,
         alignment: docx.AlignmentType.CENTER,
         spacing: { after: 300, before: 0 },
         style: "Heading1"
@@ -97,18 +100,20 @@ exports.convertExcelToWord = async (filePath, discountPercentage) => {
     let tableRows = [];
     let totalSum = 0;
 
-    // Добавляем заголовок таблицы
-    const headerRow = new docx.TableRow({
-      children: [
-        new docx.TableCell({ children: [new docx.Paragraph({ text: 'Наименование на фасаде', bold: true })], alignment: docx.AlignmentType.CENTER }),
-        new docx.TableCell({ children: [new docx.Paragraph({ text: 'Номенклатура', bold: true })], alignment: docx.AlignmentType.CENTER }),
-        new docx.TableCell({ children: [new docx.Paragraph({ text: 'Кол-во изделий, шт.', bold: true })], alignment: docx.AlignmentType.CENTER }),
-        new docx.TableCell({ children: [new docx.Paragraph({ text: 'Цена, руб.', bold: true })], alignment: docx.AlignmentType.CENTER }),
-        new docx.TableCell({ children: [new docx.Paragraph({ text: 'Сумма, руб.', bold: true })], alignment: docx.AlignmentType.CENTER }),
-        new docx.TableCell({ children: [new docx.Paragraph({ text: 'Площадь развёртки, м2', bold: true })], alignment: docx.AlignmentType.CENTER }),
-      ],
-    });
-    tableRows.push(headerRow);
+    // Добавляем заголовок таблицы только для полной версии
+    if (!makeShortVersion) {
+      const headerRow = new docx.TableRow({
+        children: [
+          new docx.TableCell({ children: [new docx.Paragraph({ text: 'Наименование на фасаде', bold: true })], alignment: docx.AlignmentType.CENTER }),
+          new docx.TableCell({ children: [new docx.Paragraph({ text: 'Номенклатура', bold: true })], alignment: docx.AlignmentType.CENTER }),
+          new docx.TableCell({ children: [new docx.Paragraph({ text: 'Кол-во изделий, шт.', bold: true })], alignment: docx.AlignmentType.CENTER }),
+          new docx.TableCell({ children: [new docx.Paragraph({ text: 'Цена, руб.', bold: true })], alignment: docx.AlignmentType.CENTER }),
+          new docx.TableCell({ children: [new docx.Paragraph({ text: 'Сумма, руб.', bold: true })], alignment: docx.AlignmentType.CENTER }),
+          new docx.TableCell({ children: [new docx.Paragraph({ text: 'Площадь развёртки, м2', bold: true })], alignment: docx.AlignmentType.CENTER }),
+        ],
+      });
+      tableRows.push(headerRow);
+    }
 
     console.log('Начало обработки строк Excel');
 
@@ -146,100 +151,145 @@ exports.convertExcelToWord = async (filePath, discountPercentage) => {
     let isEvenRow = false; // Флаг для чередования цвета фона
 
     if (groupedRows && Array.isArray(groupedRows)) {
-      groupedRows.forEach(group => {
-        const firstRow = group[0];
-        const name = getCellValue(firstRow.getCell('A'));
-        
-        const mergedCell = new docx.TableCell({
-          children: [new docx.Paragraph({ 
-            text: name,
-            alignment: docx.AlignmentType.CENTER,
-            style: "italicStyle"
-          })],
-          rowSpan: group.length,
-          verticalAlign: docx.VerticalAlign.CENTER,
+      if (makeShortVersion) {
+        // Код для короткой версии
+        const headerRow = new docx.TableRow({
+          children: [
+            new docx.TableCell({ children: [new docx.Paragraph({ text: 'Наименование на фасаде', bold: true })], alignment: docx.AlignmentType.CENTER }),
+            new docx.TableCell({ children: [new docx.Paragraph({ text: 'Сумма', bold: true })], alignment: docx.AlignmentType.CENTER }),
+          ],
         });
-        
-        let blockSum = 0; // Переменная для хранения суммы блока
-        
-        group.forEach((row, index) => {
-          isEvenRow = !isEvenRow; // Меняем флаг для каждой строки
-          const shading = isEvenRow ? { fill: "F2F2F2" } : undefined; // Светло-серый цвет для четных строк
+        tableRows.push(headerRow);
 
-      const tableRow = new docx.TableRow({
-            children: index === 0 ? 
-              [
-                mergedCell,
-                new docx.TableCell({ children: [new docx.Paragraph({ text: getCellValue(row.getCell('B')), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
-                new docx.TableCell({ children: [new docx.Paragraph({ text: getCellValue(row.getCell('G')), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
-                new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(getCellValue(row.getCell('H'))), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
-                new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(getCellValue(row.getCell('I'))), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
-                new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(getCellValue(row.getCell('J')), 3), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
-              ] :
-              [
-                new docx.TableCell({ children: [new docx.Paragraph({ text: getCellValue(row.getCell('B')), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
-                new docx.TableCell({ children: [new docx.Paragraph({ text: getCellValue(row.getCell('G')), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
-                new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(getCellValue(row.getCell('H'))), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
-                new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(getCellValue(row.getCell('I'))), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
-                new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(getCellValue(row.getCell('J')), 3), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
-        ],
-      });
-      
-      tableRows.push(tableRow);
+        groupedRows.forEach(group => {
+          const firstRow = group[0];
+          const name = getCellValue(firstRow.getCell('A'));
           
-          // Добавляем значение из столбца "Сумма" к общей сумме блока
-          blockSum += parseFloat(getCellValue(row.getCell('I'))) || 0;
-        });
-        
-        // Проверяем, не является ли это строкой с итоговой суммой
-        const firstCellValue = getCellValue(firstRow.getCell('A'));
-        if (firstCellValue.includes('Итого стоимость производства составляет')) {
-          totalSum = parseFloat(getCellValue(firstRow.getCell('I'))) || 0;
-          // Добавляем эту строку в таблицу без изменений
-          const totalSumRow = new docx.TableRow({
+          // Пропускаем строку "Итого стоимость работ составляет"
+          if (name.includes('Итого стоимость производства составляет')) {
+            return;
+          }
+          
+          let blockSum = 0;
+          
+          group.forEach(row => {
+            blockSum += parseFloat(getCellValue(row.getCell('I'))) || 0;
+          });
+
+          const tableRow = new docx.TableRow({
             children: [
-              new docx.TableCell({ children: [new docx.Paragraph({ text: firstCellValue, bold: true })], columnSpan: 5 }),
-              new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(totalSum), bold: true, alignment: docx.AlignmentType.RIGHT })], verticalAlign: docx.VerticalAlign.CENTER }),
+              new docx.TableCell({ children: [new docx.Paragraph({ text: name, alignment: docx.AlignmentType.LEFT })], verticalAlign: docx.VerticalAlign.CENTER }),
+              new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(blockSum), alignment: docx.AlignmentType.RIGHT })], verticalAlign: docx.VerticalAlign.CENTER }),
             ],
           });
-          tableRows.push(totalSumRow);
-          return; // Прерываем обработку этой группы
-        }
-        
-        // Добавляем итоговую строку для блока
-        const totalRow = new docx.TableRow({
-          children: [
-            new docx.TableCell({ 
-              children: [new docx.Paragraph({ 
-                text: 'Итого:',
-                alignment: docx.AlignmentType.LEFT,
-                bold: true
-              })],
-              columnSpan: 4,
-            }),
-            new docx.TableCell({ 
-              children: [new docx.Paragraph({ 
-                text: formatNumber(blockSum),
-                alignment: docx.AlignmentType.CENTER,
-                bold: true
-              })],
-            }),
-            new docx.TableCell({ children: [new docx.Paragraph({ text: '' })], verticalAlign: docx.VerticalAlign.CENTER }),
-          ],
-          shading: { fill: "D9D9D9" }, // Серый цвет для строки "Итого"
+          tableRows.push(tableRow);
+          
+          totalSum += blockSum;
         });
-        
-        tableRows.push(totalRow);
-        isEvenRow = false; // Сбрасываем флаг после итоговой строки
-      });
+      } else {
+        // Код для полной версии
+        groupedRows.forEach((group, groupIndex) => {
+          const firstRow = group[0];
+          const name = getCellValue(firstRow.getCell('A'));
+          
+          // Пропускаем строку "Итого стоимость работ составляет"
+          if (name.includes('Итого стоимость производства составляет')) {
+            return;
+          }
+          
+          let blockSum = 0;
+          
+          group.forEach((row, index) => {
+            isEvenRow = !isEvenRow;
+            const shading = isEvenRow ? { fill: "F2F2F2" } : undefined;
+
+            const tableRow = new docx.TableRow({
+              children: index === 0 ? 
+                [
+                  new docx.TableCell({
+                    children: [new docx.Paragraph({ 
+                      text: name,
+                      alignment: docx.AlignmentType.CENTER,
+                      style: "italicStyle"
+                    })],
+                    rowSpan: group.length,
+                    verticalAlign: docx.VerticalAlign.CENTER,
+                  }),
+                  new docx.TableCell({ children: [new docx.Paragraph({ text: getCellValue(row.getCell('B')), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
+                  new docx.TableCell({ children: [new docx.Paragraph({ text: getCellValue(row.getCell('G')), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
+                  new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(getCellValue(row.getCell('H'))), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
+                  new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(getCellValue(row.getCell('I'))), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
+                  new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(getCellValue(row.getCell('J')), 3), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
+                ] :
+                [
+                  new docx.TableCell({ children: [new docx.Paragraph({ text: getCellValue(row.getCell('B')), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
+                  new docx.TableCell({ children: [new docx.Paragraph({ text: getCellValue(row.getCell('G')), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
+                  new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(getCellValue(row.getCell('H'))), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
+                  new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(getCellValue(row.getCell('I'))), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
+                  new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(getCellValue(row.getCell('J')), 3), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
+                ],
+            });
+            
+            tableRows.push(tableRow);
+            
+            blockSum += parseFloat(getCellValue(row.getCell('I'))) || 0;
+          });
+          
+          // Добавляем итоговую строку для блока
+          const blockTotalRow = new docx.TableRow({
+            children: [
+              new docx.TableCell({ children: [new docx.Paragraph({ text: 'Итого:', bold: true })], columnSpan: 4, alignment: docx.AlignmentType.RIGHT }),
+              new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(blockSum), bold: true, alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER }),
+              new docx.TableCell({ children: [new docx.Paragraph({ text: '' })], verticalAlign: docx.VerticalAlign.CENTER }),
+            ],
+            shading: { fill: "D9D9D9" },
+          });
+          tableRows.push(blockTotalRow);
+          
+          totalSum += blockSum;
+        });
+      }
     } else {
       console.log('groupedRows не определен или не является массивом');
     }
 
     console.log(`Обработано ${tableRows.length} строк`);
 
-    // Удаляем последнюю строку из tableRows, так как она содержит итоговую сумму
-    tableRows.pop();
+    // Добавляем итоговую строку
+    const totalSumRow = new docx.TableRow({
+      children: makeShortVersion ? [
+        new docx.TableCell({ 
+          children: [new docx.Paragraph({ 
+            text: 'Итого стоимость производства составляет', 
+            bold: true,
+            alignment: docx.AlignmentType.LEFT 
+          })],
+        }),
+        new docx.TableCell({ 
+          children: [new docx.Paragraph({ 
+            text: formatNumber(totalSum), 
+            bold: true, 
+            alignment: docx.AlignmentType.CENTER 
+          })],
+          verticalAlign: docx.VerticalAlign.CENTER 
+        }),
+      ] : [
+        new docx.TableCell({ children: [new docx.Paragraph({ text: 'Итого:', bold: true })], columnSpan: 4, alignment: docx.AlignmentType.LEFT }),
+        new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(totalSum), bold: true, alignment: docx.AlignmentType.RIGHT })], verticalAlign: docx.VerticalAlign.CENTER }),
+        new docx.TableCell({ children: [new docx.Paragraph({ text: '' })], verticalAlign: docx.VerticalAlign.CENTER }),
+      ],
+    });
+
+    // Применяем заливку к ячейкам итоговой строки
+    if (totalSumRow.children) {
+      totalSumRow.children.forEach(cell => {
+        if (cell) {
+          cell.shading = { fill: "FFE699" };
+        }
+      });
+    }
+
+    tableRows.push(totalSumRow);
 
     // Добавляем таблицу
     const table = new docx.Table({
@@ -293,7 +343,7 @@ exports.convertExcelToWord = async (filePath, discountPercentage) => {
         const row = izdeliyaWorksheet.getRow(i);
         const cellA = getCellValue(row.getCell('A'));
         if (!cellA) {
-          console.log(`Достигнут конец даннх на строке ${i}`);
+          console.log(`Достигнут конец данных на строке ${i}`);
           break;
         }
 
@@ -530,7 +580,7 @@ exports.convertExcelToWord = async (filePath, discountPercentage) => {
         default: new docx.Footer({
           children: [
             new docx.Paragraph({
-              text: "Предложение действительно 25 дней. Предложение является предварительным. Для окончательного расчета требуется проектирование.",
+              text: "Предложение действительно 25 дней. Расчет является предварительным. Для окончательного расчета требуется проектирование.",
               alignment: docx.AlignmentType.CENTER,
             }),
           ],
@@ -547,13 +597,24 @@ exports.convertExcelToWord = async (filePath, discountPercentage) => {
 
     fs.unlinkSync(filePath);
     console.log('Временный файл Excel удален');
-
     return buffer;
   } catch (error) {
     console.error('Ошибка в процессе конвертации:', error);
     console.error('Стек вызовов:', error.stack);
     
-    // Добавьте больше информации об ошибке
+    // Добавляем больше информации об ошибке
+    if (error instanceof Error) {
+      console.error('Имя ошибки:', error.name);
+      console.error('Сообщение ошибки:', error.message);
+    }
+    
+    if (error.code) {
+      console.error('Код ошибки:', error.code);
+    }
+    
+    if (error.syscall) {
+      console.error('Системный вызов:', error.syscall);
+    }
     if (error && error.name === 'ExcelJS.Error') {
       console.error('Ошибка ExcelJS:', error.message);
     } else if (error && error.name === 'docx.Error') {
@@ -573,7 +634,7 @@ exports.convertExcelToWord = async (filePath, discountPercentage) => {
     try {
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
-        console.log('Времнный файл Excel удален');
+        console.log('Временный файл Excel удален');
       }
     } catch (unlinkError) {
       console.error('Ошибка при удалении временного файла:', unlinkError);
@@ -602,4 +663,3 @@ function formatNumberRounded(value) {
   if (isNaN(num)) return value;
   return Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 }
-
