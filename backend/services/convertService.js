@@ -12,9 +12,12 @@ function convertMillimetersToPixels(mm) {
 }
 
 exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersion, originalFileName) => {
-  console.log('Начало процесса конвертации');
-  console.log('Путь к файлу:', filePath);
-  console.log('Оригинальное имя файла:', originalFileName);
+  console.log('=== Начало конвертации ===');
+  console.log('Параметры:');
+  console.log('- filePath:', filePath);
+  console.log('- discountPercentage:', discountPercentage);
+  console.log('- makeShortVersion:', makeShortVersion);
+  console.log('- originalFileName:', originalFileName);
 
   try {
     const workbook = new ExcelJS.Workbook();
@@ -83,7 +86,7 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
       console.log('Файл изображения шапки не найден:', headerImagePath);
     }
     // Получаем имя файла без расширения и первые 10 символов
-    const fileId = originalFileName.replace('.xlsx', '').slice(0, 10);
+    const fileId = originalFileName ? path.parse(originalFileName).name : 'unknown';
 
     // Добавляем заголовок с идентификатором файла
     children.push(
@@ -330,7 +333,7 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
           new docx.TableCell({ children: [new docx.Paragraph({ text: 'Кол-во форм, шт.', bold: true })], alignment: docx.AlignmentType.CENTER }),
           new docx.TableCell({ children: [new docx.Paragraph({ text: 'Стоимость формы за м², руб.', bold: true })], alignment: docx.AlignmentType.CENTER }),
           new docx.TableCell({ children: [new docx.Paragraph({ text: 'Стоимость форм для изделий, руб.', bold: true })], alignment: docx.AlignmentType.CENTER }),
-          new docx.TableCell({ children: [new docx.Paragraph({ text: 'Стоимость заливки за м², руб.', bold: true })], alignment: docx.AlignmentType.CENTER }),
+          new docx.TableCell({ children: [new docx.Paragraph({ text: 'Стоимость аливки за м², уб.', bold: true })], alignment: docx.AlignmentType.CENTER }),
           new docx.TableCell({ children: [new docx.Paragraph({ text: 'Стоимость за единицу, руб.', bold: true })], alignment: docx.AlignmentType.CENTER }),
         ],
         tableHeader: true,

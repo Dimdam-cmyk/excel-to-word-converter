@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://176.124.219.69:5001/api';
+const API_URL = 'https://архио-коммерческое.рф/api';
 
 export const convertExcelToWord = async (file, discountPercentage, makeShortVersion) => {
   const formData = new FormData();

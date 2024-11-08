@@ -9,16 +9,26 @@ const port = process.env.PORT || 5001;
 
 // Настройка CORS
 app.use(cors({
-  origin: ['http://176.124.219.69:3002', 'http://localhost:3002'],
+  origin: [
+    'http://176.124.219.69:3002', 
+    'http://localhost:3002',
+    'http://архио-коммерческое.рф',
+    'https://архио-коммерческое.рф',  // Добавляем HTTPS версию
+    'http://xn----7sbqaaopcpascfrir1d4b.xn--p1ai',
+    'https://xn----7sbqaaopcpascfrir1d4b.xn--p1ai'  // Добавляем HTTPS версию punycode
+  ],
   methods: ['GET', 'POST'],
   credentials: true
 }));
 
-app.use(express.json());
-
 // Логирование всех запросов
 app.use((req, res, next) => {
+  console.log('--------------------');
   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  console.log('Headers:', req.headers);
+  if (req.file) console.log('File:', req.file);
+  if (req.body) console.log('Body:', req.body);
+  console.log('--------------------');
   next();
 });
 
