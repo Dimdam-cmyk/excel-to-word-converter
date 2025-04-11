@@ -11,6 +11,14 @@ function convertMillimetersToPixels(mm) {
   return Math.round(mm * 3.78); // 1 мм = 3.78 пикселей при 96 DPI
 }
 
+// Функция для расчета пропорционального масштабирования
+function calculateProportionalDimensions(targetWidthMm, originalAspectRatio) {
+  const targetWidthPx = convertMillimetersToPixels(targetWidthMm);
+  const targetHeightPx = Math.round(targetWidthPx / originalAspectRatio);
+  
+  return { width: targetWidthPx, height: targetHeightPx };
+}
+
 exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersion, originalFileName) => {
   console.log('=== Начало конвертации ===');
   console.log('Параметры:');
@@ -64,21 +72,36 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
     const headerImagePath = path.join(__dirname, '../assets/header.png');
     if (fs.existsSync(headerImagePath)) {
       try {
+        // Получаем буфер изображения
+        const headerImageBuffer = fs.readFileSync(headerImagePath);
+        
+        // Используем фиксированное соотношение сторон для изображения шапки
+        // Увеличиваем соотношение сторон, чтобы сделать изображение менее высоким
+        const originalAspectRatio = 6.5; // Увеличиваем соотношение ширина:высота
+        
+        // Целевая ширина по ширине таблицы
+        const targetWidthMm = 250;
+        
+        // Рассчитываем высоту, сохраняя пропорции
+        // Высота будет примерно 250/6.5 = 38.5 мм (около 4 см)
+        const dimensions = calculateProportionalDimensions(targetWidthMm, originalAspectRatio);
+        
         children.push(
           new docx.Paragraph({
             children: [
               new docx.ImageRun({
-                data: fs.readFileSync(headerImagePath),
+                data: headerImageBuffer,
                 transformation: {
-                  width: convertMillimetersToPixels(228.4),
-                  height: convertMillimetersToPixels(43),
+                  width: dimensions.width,
+                  height: dimensions.height,
                 },
               }),
             ],
             spacing: { after: 300, before: 0 },
+            alignment: docx.AlignmentType.CENTER, // Центрирование изображения
           })
         );
-        console.log('Изображение шапки добавлено');
+        console.log('Изображение шапки добавлено с размерами:', dimensions);
       } catch (error) {
         console.error('Ошибка при добавлении изображения шапки:', error);
       }
@@ -525,14 +548,15 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
       const imagePath = path.join(__dirname, `../assets/${imageName}`);
       if (fs.existsSync(imagePath)) {
         try {
+          const footerImageBuffer = fs.readFileSync(imagePath);
           children.push(
             new docx.Paragraph({
               children: [
                 new docx.ImageRun({
-                  data: fs.readFileSync(imagePath),
+                  data: footerImageBuffer,
                   transformation: {
-                    width: convertMillimetersToPixels(277),
-                    height: convertMillimetersToPixels(190),
+                    width: convertMillimetersToPixels(250), // Устанавливаем ширину, равную ширине таблицы
+                    height: convertMillimetersToPixels(150), // Уменьшаем высоту для лучшего соотношения
                   },
                 }),
               ],
@@ -582,7 +606,7 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
         default: new docx.Footer({
           children: [
             new docx.Paragraph({
-              text: "Предложение действительно 25 дней. Расчет является предварительным. Для окончательног расчета требуется проектирование.",
+              text: "Предложение действительно 25 дней. Расчет является предварительным. Для окончательного расчета требуется проектирование.",
               alignment: docx.AlignmentType.CENTER,
             }),
           ],
