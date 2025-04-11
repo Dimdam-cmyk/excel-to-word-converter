@@ -14,9 +14,10 @@ router.post('/', async (req, res) => {
     console.log('Начало конвертации файла');
     const discountPercentage = req.body.discountPercentage ? parseFloat(req.body.discountPercentage) : null;
     const makeShortVersion = req.body.makeShortVersion === 'true';
+    const includeVAT = req.body.includeVAT === 'true';
     const originalFileName = req.body.originalFileName;
 
-    const buffer = await convertService.convertExcelToWord(req.file.path, discountPercentage, makeShortVersion, originalFileName);
+    const buffer = await convertService.convertExcelToWord(req.file.path, discountPercentage, makeShortVersion, originalFileName, includeVAT);
     console.log('Конвертация завершена успешно');
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');

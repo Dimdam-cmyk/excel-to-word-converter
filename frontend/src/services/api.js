@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const API_URL = 'https://архио-коммерческое.рф/api';
 
-export const convertExcelToWord = async (file, discountPercentage, makeShortVersion) => {
+export const convertExcelToWord = async (file, discountPercentage, makeShortVersion, includeVAT) => {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('originalFileName', file.name);
@@ -10,6 +10,7 @@ export const convertExcelToWord = async (file, discountPercentage, makeShortVers
     formData.append('discountPercentage', discountPercentage);
   }
   formData.append('makeShortVersion', makeShortVersion);
+  formData.append('includeVAT', includeVAT);
 
   try {
     const response = await axios.post(`${API_URL}/convert`, formData, {
