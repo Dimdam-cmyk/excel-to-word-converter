@@ -207,10 +207,15 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
     // Добавляем заголовок с идентификатором файла
     children.push(
       new docx.Paragraph({
-        text: `Коммерческое предложение на поставку изделий из полимербетона ARHIO по проекту ${fileId}`,
+        children: [
+          new docx.TextRun({
+            text: `Коммерческое предложение на поставку изделий из полимербетона ARHIO по проекту ${fileId}`,
+            bold: true,
+            size: 28, // 14pt
+          }),
+        ],
         alignment: docx.AlignmentType.CENTER,
         spacing: { after: 300, before: 0 },
-        style: "Heading1"
       })
     );
 
@@ -230,50 +235,50 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
     const headerRow = new docx.TableRow({
       children: makeShortVersion ? [
         new docx.TableCell({ 
-          children: [new docx.Paragraph({ text: 'Наименование на фасаде', bold: true })], 
+          children: [new docx.Paragraph({ text: 'Наименование на фасаде', bold: true, alignment: docx.AlignmentType.CENTER })], 
           alignment: docx.AlignmentType.CENTER, 
           verticalAlign: docx.VerticalAlign.CENTER,
           shading: { fill: "D3D3D3" } 
         }),
         new docx.TableCell({ 
-          children: [new docx.Paragraph({ text: 'Сумма, руб.', bold: true })], 
+          children: [new docx.Paragraph({ text: 'Сумма, руб.', bold: true, alignment: docx.AlignmentType.CENTER })], 
           alignment: docx.AlignmentType.CENTER,
           verticalAlign: docx.VerticalAlign.CENTER,
           shading: { fill: "D3D3D3" }
         }),
       ] : [
         new docx.TableCell({ 
-          children: [new docx.Paragraph({ text: 'Наименование на фасаде', bold: true })], 
+          children: [new docx.Paragraph({ text: 'Наименование на фасаде', bold: true, alignment: docx.AlignmentType.CENTER })], 
           alignment: docx.AlignmentType.CENTER, 
           verticalAlign: docx.VerticalAlign.CENTER,
           shading: { fill: "D3D3D3" } // Добавляем серую заливку для заголовка
         }),
         new docx.TableCell({ 
-          children: [new docx.Paragraph({ text: 'Номенклатура', bold: true })], 
+          children: [new docx.Paragraph({ text: 'Номенклатура', bold: true, alignment: docx.AlignmentType.CENTER })], 
           alignment: docx.AlignmentType.CENTER,
           verticalAlign: docx.VerticalAlign.CENTER,
           shading: { fill: "D3D3D3" }
         }),
         new docx.TableCell({ 
-          children: [new docx.Paragraph({ text: 'Кол-во изделий, шт.', bold: true })], 
+          children: [new docx.Paragraph({ text: 'Кол-во изделий, шт.', bold: true, alignment: docx.AlignmentType.CENTER })], 
           alignment: docx.AlignmentType.CENTER,
           verticalAlign: docx.VerticalAlign.CENTER,
           shading: { fill: "D3D3D3" }
         }),
         new docx.TableCell({ 
-          children: [new docx.Paragraph({ text: 'Цена, руб.', bold: true })], 
+          children: [new docx.Paragraph({ text: 'Цена, руб.', bold: true, alignment: docx.AlignmentType.CENTER })], 
           alignment: docx.AlignmentType.CENTER,
           verticalAlign: docx.VerticalAlign.CENTER,
           shading: { fill: "D3D3D3" }
         }),
         new docx.TableCell({ 
-          children: [new docx.Paragraph({ text: 'Сумма, руб.', bold: true })], 
+          children: [new docx.Paragraph({ text: 'Сумма, руб.', bold: true, alignment: docx.AlignmentType.CENTER })], 
           alignment: docx.AlignmentType.CENTER,
           verticalAlign: docx.VerticalAlign.CENTER,
           shading: { fill: "D3D3D3" }
         }),
         new docx.TableCell({ 
-          children: [new docx.Paragraph({ text: 'Площадь развёртки, м2', bold: true })], 
+          children: [new docx.Paragraph({ text: 'Площадь развёртки, м2', bold: true, alignment: docx.AlignmentType.CENTER })], 
           alignment: docx.AlignmentType.CENTER,
           verticalAlign: docx.VerticalAlign.CENTER,
           shading: { fill: "D3D3D3" }
@@ -408,10 +413,10 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
               new docx.TextRun({
                 text: "Итого:",
                 bold: true,
-                alignment: docx.AlignmentType.RIGHT
+                alignment: docx.AlignmentType.CENTER
               })
             ],
-            alignment: docx.AlignmentType.RIGHT
+            alignment: docx.AlignmentType.CENTER
           });
           
           // Создаем пустую строку с жирным шрифтом для пропуска
@@ -447,29 +452,43 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
             alignment: docx.AlignmentType.CENTER
           });
           
-          // Добавляем итоговую строку для блока
+          // Добавляем итоговую строку для блока с желтой заливкой
           const blockTotalRow = new docx.TableRow({
             children: [
               new docx.TableCell({ 
                 children: [itogoParagraph], 
-                columnSpan: 3
+                columnSpan: 3,
+                verticalAlign: docx.VerticalAlign.CENTER,
+                shading: { fill: "DDE8F6" } // Светло-голубая заливка
               }),
               new docx.TableCell({ 
                 children: [emptyBoldParagraph], 
-                verticalAlign: docx.VerticalAlign.CENTER 
+                verticalAlign: docx.VerticalAlign.CENTER,
+                shading: { fill: "DDE8F6" } // Светло-голубая заливка
               }),
               new docx.TableCell({ 
                 children: [totalSumParagraph], 
-                verticalAlign: docx.VerticalAlign.CENTER 
+                verticalAlign: docx.VerticalAlign.CENTER,
+                shading: { fill: "DDE8F6" } // Светло-голубая заливка
               }),
               new docx.TableCell({ 
                 children: [totalAreaParagraph], 
-                verticalAlign: docx.VerticalAlign.CENTER 
+                verticalAlign: docx.VerticalAlign.CENTER,
+                shading: { fill: "DDE8F6" } // Светло-голубая заливка
               }),
             ],
-            shading: { fill: "D9D9D9" },
           });
           tableRows.push(blockTotalRow);
+          
+          // Добавляем пустую строку после итогового блока
+          const emptyRow = new docx.TableRow({
+            children: makeShortVersion ? [
+              new docx.TableCell({ children: [new docx.Paragraph({ text: '' })], columnSpan: 2 }),
+            ] : [
+              new docx.TableCell({ children: [new docx.Paragraph({ text: '' })], columnSpan: 6 }),
+            ]
+          });
+          tableRows.push(emptyRow);
           
           totalSum += blockSum;
         });
@@ -585,37 +604,46 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
         new docx.TableCell({ 
           children: [totalProjectParagraph],
           verticalAlign: docx.VerticalAlign.CENTER,
+          shading: { fill: "DDE8F6" } // Светло-голубая заливка
         }),
         new docx.TableCell({ 
           children: [totalSumParagraph],
-          verticalAlign: docx.VerticalAlign.CENTER 
+          verticalAlign: docx.VerticalAlign.CENTER,
+          shading: { fill: "DDE8F6" } // Светло-голубая заливка
         }),
       ] : [
         new docx.TableCell({ 
           children: [totalProjectParagraph], 
           columnSpan: 3, 
           verticalAlign: docx.VerticalAlign.CENTER,
+          shading: { fill: "DDE8F6" } // Светло-голубая заливка
         }),
         new docx.TableCell({ 
           children: [emptyBoldTotal], 
-          verticalAlign: docx.VerticalAlign.CENTER 
+          verticalAlign: docx.VerticalAlign.CENTER,
+          shading: { fill: "DDE8F6" } // Светло-голубая заливка
         }),
         new docx.TableCell({ 
           children: [totalSumParagraph], 
-          verticalAlign: docx.VerticalAlign.CENTER 
+          verticalAlign: docx.VerticalAlign.CENTER,
+          shading: { fill: "DDE8F6" } // Светло-голубая заливка
         }),
         new docx.TableCell({ 
           children: [totalAreaParagraph], 
-          verticalAlign: docx.VerticalAlign.CENTER 
+          verticalAlign: docx.VerticalAlign.CENTER,
+          shading: { fill: "DDE8F6" } // Светло-голубая заливка
         }),
       ],
     });
+
+    // Текст "ИТОГО по проекту:" выравниваем по центру
+    totalProjectParagraph.alignment = docx.AlignmentType.CENTER;
 
     // Применяем заливку к ячейкам итоговой строки
     if (totalSumRow.children) {
       totalSumRow.children.forEach(cell => {
         if (cell) {
-          cell.shading = { fill: "FFE699" }; // Золотистая заливка для итоговой строки
+          cell.shading = { fill: "DDE8F6" }; // Светло-голубая заливка для итоговой строки
         }
       });
     }
@@ -640,12 +668,12 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
       } else {
         // Настройка для полной версии
         // Наименование на фасаде - широкий
-        tableRows[0].children[0].width = { size: 2000, type: docx.WidthType.DXA };
+        tableRows[0].children[0].width = { size: 2500, type: docx.WidthType.DXA };
         
-        // Номенклатура - средний
-        tableRows[0].children[1].width = { size: 1800, type: docx.WidthType.DXA };
+        // Номенклатура - средний, увеличиваем ширину
+        tableRows[0].children[1].width = { size: 3000, type: docx.WidthType.DXA };
         
-        // Кол-во изделий - узкий
+        // Кол-во изделий, шт.
         tableRows[0].children[2].width = { size: 800, type: docx.WidthType.DXA };
         
         // Цена - средний
@@ -666,10 +694,15 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
     // Добавляем новую таблицу "Стоимость форм и заливки"
     children.push(
       new docx.Paragraph({
-        text: "Стоимость форм и заливки",
+        children: [
+          new docx.TextRun({
+            text: "Стоимость форм и заливки",
+            bold: true,
+            size: 28, // 14pt
+          }),
+        ],
         alignment: docx.AlignmentType.CENTER,
         spacing: { after: 300, before: 300 },
-        style: "Heading1"
       })
     );
 
@@ -693,67 +726,67 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
       const headerRow = new docx.TableRow({
         children: [
           new docx.TableCell({
-            children: [new docx.Paragraph({ text: '№ п/п', bold: true })],
+            children: [new docx.Paragraph({ text: '№ п/п', bold: true, alignment: docx.AlignmentType.CENTER })],
             alignment: docx.AlignmentType.CENTER,
             verticalAlign: docx.VerticalAlign.CENTER,
             shading: { fill: "D3D3D3" }
           }),
           new docx.TableCell({
-            children: [new docx.Paragraph({ text: 'Номенклатура', bold: true })],
+            children: [new docx.Paragraph({ text: 'Номенклатура', bold: true, alignment: docx.AlignmentType.CENTER })],
             alignment: docx.AlignmentType.CENTER,
             verticalAlign: docx.VerticalAlign.CENTER,
             shading: { fill: "D3D3D3" }
           }),
           new docx.TableCell({
-            children: [new docx.Paragraph({ text: 'Площадь развертки изделия, м2', bold: true })],
+            children: [new docx.Paragraph({ text: 'Площадь развертки изделия, м2', bold: true, alignment: docx.AlignmentType.CENTER })],
             alignment: docx.AlignmentType.CENTER,
             verticalAlign: docx.VerticalAlign.CENTER,
             shading: { fill: "D3D3D3" }
           }),
           new docx.TableCell({
-            children: [new docx.Paragraph({ text: 'Кол-во изделий, шт.', bold: true })],
+            children: [new docx.Paragraph({ text: 'Кол-во изделий, шт.', bold: true, alignment: docx.AlignmentType.CENTER })],
             alignment: docx.AlignmentType.CENTER,
             verticalAlign: docx.VerticalAlign.CENTER,
             shading: { fill: "D3D3D3" }
           }),
           new docx.TableCell({
-            children: [new docx.Paragraph({ text: 'Площадь развертки общая, м2', bold: true })],
+            children: [new docx.Paragraph({ text: 'Площадь развертки общая, м2', bold: true, alignment: docx.AlignmentType.CENTER })],
             alignment: docx.AlignmentType.CENTER,
             verticalAlign: docx.VerticalAlign.CENTER,
             shading: { fill: "D3D3D3" }
           }),
           new docx.TableCell({
-            children: [new docx.Paragraph({ text: 'Масса общая, кг', bold: true })],
+            children: [new docx.Paragraph({ text: 'Масса общая, кг', bold: true, alignment: docx.AlignmentType.CENTER })],
             alignment: docx.AlignmentType.CENTER,
             verticalAlign: docx.VerticalAlign.CENTER,
             shading: { fill: "D3D3D3" }
           }),
           new docx.TableCell({
-            children: [new docx.Paragraph({ text: 'Кол-во форм, шт.', bold: true })],
+            children: [new docx.Paragraph({ text: 'Кол-во форм, шт.', bold: true, alignment: docx.AlignmentType.CENTER })],
             alignment: docx.AlignmentType.CENTER,
             verticalAlign: docx.VerticalAlign.CENTER,
             shading: { fill: "D3D3D3" }
           }),
           new docx.TableCell({
-            children: [new docx.Paragraph({ text: 'Стоимость формы за м², руб.', bold: true })],
+            children: [new docx.Paragraph({ text: 'Стоимость формы за м², руб.', bold: true, alignment: docx.AlignmentType.CENTER })],
             alignment: docx.AlignmentType.CENTER,
             verticalAlign: docx.VerticalAlign.CENTER,
             shading: { fill: "D3D3D3" }
           }),
           new docx.TableCell({
-            children: [new docx.Paragraph({ text: 'Стоимость форм для изделий, руб.', bold: true })],
+            children: [new docx.Paragraph({ text: 'Стоимость форм для изделий, руб.', bold: true, alignment: docx.AlignmentType.CENTER })],
             alignment: docx.AlignmentType.CENTER,
             verticalAlign: docx.VerticalAlign.CENTER,
             shading: { fill: "D3D3D3" }
           }),
           new docx.TableCell({
-            children: [new docx.Paragraph({ text: 'Стоимость заливки за м², руб.', bold: true })],
+            children: [new docx.Paragraph({ text: 'Стоимость заливки за м², руб.', bold: true, alignment: docx.AlignmentType.CENTER })],
             alignment: docx.AlignmentType.CENTER,
             verticalAlign: docx.VerticalAlign.CENTER,
             shading: { fill: "D3D3D3" }
           }),
           new docx.TableCell({
-            children: [new docx.Paragraph({ text: 'Стоимость за единицу, руб.', bold: true })],
+            children: [new docx.Paragraph({ text: 'Стоимость за единицу, руб.', bold: true, alignment: docx.AlignmentType.CENTER })],
             alignment: docx.AlignmentType.CENTER,
             verticalAlign: docx.VerticalAlign.CENTER,
             shading: { fill: "D3D3D3" }
@@ -834,9 +867,9 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
             new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(getCellValue(row.getCell('I')), 2), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
             new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(getCellValue(row.getCell('K')), 2), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
             new docx.TableCell({ children: [new docx.Paragraph({ text: getCellValue(row.getCell('L')), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
-            new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(discountedM, 2), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading: { fill: "FFE699" } }),
+            new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(discountedM, 2), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading: { fill: "DDE8F6" } }),
             new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(discountedN, 2), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
-            new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(discountedO, 2), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading: { fill: "FFE699" } }),
+            new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(discountedO, 2), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading: { fill: "DDE8F6" } }),
             new docx.TableCell({ children: [new docx.Paragraph({ text: formatNumber(discountedV, 2), alignment: docx.AlignmentType.CENTER })], verticalAlign: docx.VerticalAlign.CENTER, shading }),
           ],
         });
@@ -853,7 +886,7 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
             children: [new docx.Paragraph({ text: '', bold: true })],
             columnSpan: 3,
             verticalAlign: docx.VerticalAlign.CENTER,
-            shading: { fill: "FFE699" }
+            shading: { fill: "DDE8F6" }
           }),
           new docx.TableCell({
             children: [new docx.Paragraph({
@@ -862,7 +895,7 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
               alignment: docx.AlignmentType.CENTER
             })],
             verticalAlign: docx.VerticalAlign.CENTER,
-            shading: { fill: "FFE699" }
+            shading: { fill: "DDE8F6" }
           }),
           new docx.TableCell({
             children: [new docx.Paragraph({
@@ -871,7 +904,7 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
               alignment: docx.AlignmentType.CENTER
             })],
             verticalAlign: docx.VerticalAlign.CENTER,
-            shading: { fill: "FFE699" }
+            shading: { fill: "DDE8F6" }
           }),
           new docx.TableCell({
             children: [new docx.Paragraph({
@@ -880,7 +913,7 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
               alignment: docx.AlignmentType.CENTER
             })],
             verticalAlign: docx.VerticalAlign.CENTER,
-            shading: { fill: "FFE699" }
+            shading: { fill: "DDE8F6" }
           }),
           new docx.TableCell({
             children: [new docx.Paragraph({
@@ -889,7 +922,7 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
               alignment: docx.AlignmentType.CENTER
             })],
             verticalAlign: docx.VerticalAlign.CENTER,
-            shading: { fill: "FFE699" }
+            shading: { fill: "DDE8F6" }
           }),
           new docx.TableCell({
             children: [new docx.Paragraph({
@@ -898,7 +931,7 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
               alignment: docx.AlignmentType.CENTER
             })],
             verticalAlign: docx.VerticalAlign.CENTER,
-            shading: { fill: "FFE699" }
+            shading: { fill: "DDE8F6" }
           }),
           new docx.TableCell({
             children: [new docx.Paragraph({
@@ -907,7 +940,7 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
               alignment: docx.AlignmentType.CENTER
             })],
             verticalAlign: docx.VerticalAlign.CENTER,
-            shading: { fill: "FFE699" }
+            shading: { fill: "DDE8F6" }
           }),
           new docx.TableCell({
             children: [new docx.Paragraph({
@@ -916,7 +949,7 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
               alignment: docx.AlignmentType.CENTER
             })],
             verticalAlign: docx.VerticalAlign.CENTER,
-            shading: { fill: "FFE699" }
+            shading: { fill: "DDE8F6" }
           }),
           new docx.TableCell({
             children: [new docx.Paragraph({
@@ -925,7 +958,7 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
               alignment: docx.AlignmentType.CENTER
             })],
             verticalAlign: docx.VerticalAlign.CENTER,
-            shading: { fill: "FFE699" }
+            shading: { fill: "DDE8F6" }
           }),
         ],
         height: {
@@ -934,8 +967,19 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
         },
       });
 
-      // Больше не нужно применять жирный шрифт для ячеек, так как уже прописано выше
+      // Добавляем итоговую строку
       tableRows.push(totalTableRow);
+
+      // Добавляем пустую строку после итоговой строки
+      const emptySecondTableRow = new docx.TableRow({
+        children: [
+          new docx.TableCell({
+            children: [new docx.Paragraph({ text: '' })],
+            columnSpan: 11
+          })
+        ]
+      });
+      tableRows.push(emptySecondTableRow);
 
       console.log('Создание таблицы');
       const secondTable = new docx.Table({
@@ -953,8 +997,8 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
         // № п/п - узкий
         tableRows[0].children[0].width = { size: 400, type: docx.WidthType.DXA };
         
-        // Номенклатура - самый широкий
-        tableRows[0].children[1].width = { size: 2500, type: docx.WidthType.DXA };
+        // Номенклатура - самый широкий (увеличиваю ширину)
+        tableRows[0].children[1].width = { size: 3000, type: docx.WidthType.DXA };
         
         // Площадь развертки изделия, м2
         tableRows[0].children[2].width = { size: 900, type: docx.WidthType.DXA };
@@ -1106,6 +1150,38 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
         spacing: { before: 400, after: 400 },
       })
     );
+
+    // Добавляем изображение подписи с контактами
+    const signaturePath = path.join(__dirname, '../assets/signature.png');
+    if (fs.existsSync(signaturePath)) {
+      try {
+        const signatureBuffer = fs.readFileSync(signaturePath);
+        // Конвертируем сантиметры в миллиметры (1 см = 10 мм)
+        const signatureWidthMm = 121.3; // 12.13 см
+        const signatureHeightMm = 41.7; // 4.17 см
+        
+        children.push(
+          new docx.Paragraph({
+            children: [
+              new docx.ImageRun({
+                data: signatureBuffer,
+                transformation: {
+                  width: convertMillimetersToPixels(signatureWidthMm),
+                  height: convertMillimetersToPixels(signatureHeightMm),
+                },
+              }),
+            ],
+            alignment: docx.AlignmentType.LEFT,
+            spacing: { before: 300, after: 300 }, // Добавляем отступы для лучшего вида
+          })
+        );
+        console.log('Изображение подписи с контактами добавлено');
+      } catch (error) {
+        console.error('Ошибка при добавлении изображения подписи:', error);
+      }
+    } else {
+      console.log('Файл изображения подписи не найден:', signaturePath);
+    }
 
     // Добавляем изображения футера
     for (const imageName of ['footer1.png', 'footer2.png']) {
