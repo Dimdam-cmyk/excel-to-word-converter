@@ -12,7 +12,7 @@ module.exports = {
     name: "frontend",
     cwd: "./frontend",
     script: "npm",
-    args: "start",
+    args: "run serve",
     env: {
       NODE_ENV: "production",
       PORT: 3002

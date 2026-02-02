@@ -102,11 +102,72 @@ const useStyles = makeStyles((theme) => ({
     width: '100%',
     textAlign: 'center',
   },
+  newConverterButton: {
+    marginBottom: theme.spacing(3),
+    padding: '10px 20px',
+    borderRadius: 8,
+    border: '2px solid #5e56dc',
+    color: '#5e56dc',
+    fontWeight: 'bold',
+    '&:hover': {
+      backgroundColor: 'rgba(94, 86, 220, 0.05)',
+      borderColor: '#4568dc',
+      color: '#4568dc',
+    },
+    transition: 'all 0.3s ease',
+  },
 }));
 
 function Alert(props) {
   return <MuiAlert elevation={6} variant="filled" {...props} />;
 }
+
+const funnyTexts = [
+  'Накидываем на скидку...',
+  'Прикручиваем 30% за вредность для клиента...',
+  'Добавляем коэффициент жадности...',
+  'Закладываем на новую квартиру для кладовщицы...',
+  'На дачу у Моря для Турсуна...',
+  'Учитываем бонус на корпоративные вечеринки...',
+  'Увеличиваем бюджет на печеньки в переговорной...',
+  'Закладываем на элитный фитнес для бухгалтерии...',
+  'Компенсация за стресс при общении с клиентами...',
+  'Резерв на непредвиденные расходы директора...'
+];
+
+const employees = [
+  'Бурдейный Дмитрий',
+  'Влад Гейинле',
+  'Анастасия Пирумова',
+  'Анастасия Пигина',
+  'Екатерина Поплавская',
+  'Виталий Ильин',
+  'Дмитрий Чумичев',
+  'Ксения Демме',
+  'Анна Маркетолог',
+  'Карина Фасилитатор'
+];
+
+const cars = [
+  'BMW X5',
+  'Mercedes S-Class',
+  'Audi Q7',
+  'Toyota Land Cruiser',
+  'Lexus LX570',
+  'Porsche Cayenne',
+  'Range Rover Sport',
+  'Jaguar F-Pace',
+  'Bentley Bentayga',
+  'Tesla Model X',
+  'Ferrari 488',
+  'Lamborghini Urus',
+  'Maserati Levante',
+  'Rolls-Royce Cullinan',
+  'Cadillac Escalade',
+  'Infiniti QX80',
+  'Volvo XC90',
+  'Genesis GV80'
+];
 
 function App() {
   const classes = useStyles();
@@ -117,59 +178,22 @@ function App() {
   const [discountPercentage, setDiscountPercentage] = useState('');
   const [makeShortVersion, setMakeShortVersion] = useState(false);
   const [includeVAT, setIncludeVAT] = useState(false);
+  const [rbtChecked, setRbtChecked] = useState(false);
+  const [rbtDiscount, setRbtDiscount] = useState('');
+  const [pricePerSqm, setPricePerSqm] = useState('14000');
+  const [subsystemPercentage, setSubsystemPercentage] = useState('15');
+  const [extraExpenses, setExtraExpenses] = useState([
+    { name: '', amount: '' },
+    { name: '', amount: '' },
+    { name: '', amount: '' },
+    { name: '', amount: '' }
+  ]);
   const [progressPercentage, setProgressPercentage] = useState(0);
   const [progressText, setProgressText] = useState('');
   const [showProgress, setShowProgress] = useState(false);
   const [progressComplete, setProgressComplete] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [selectedCar, setSelectedCar] = useState('');
-
-  const funnyTexts = [
-    'Накидываем на скидку...',
-    'Прикручиваем 30% за вредность для клиента...',
-    'Добавляем коэффициент жадности...',
-    'Закладываем на новую квартиру для кладовщицы...',
-    'На дачу у Моря для Турсуна...',
-    'Учитываем бонус на корпоративные вечеринки...',
-    'Увеличиваем бюджет на печеньки в переговорной...',
-    'Закладываем на элитный фитнес для бухгалтерии...',
-    'Компенсация за стресс при общении с клиентами...',
-    'Резерв на непредвиденные расходы директора...'
-  ];
-
-  const employees = [
-    'Бурдейный Дмитрий',
-    'Влад Гейинле',
-    'Анастасия Пирумова',
-    'Анастасия Пигина',
-    'Екатерина Поплавская',
-    'Виталий Ильин',
-    'Дмитрий Чумичев',
-    'Ксения Демме',
-    'Анна Маркетолог',
-    'Карина Фасилитатор'
-  ];
-
-  const cars = [
-    'BMW X5',
-    'Mercedes S-Class',
-    'Audi Q7',
-    'Toyota Land Cruiser',
-    'Lexus LX570',
-    'Porsche Cayenne',
-    'Range Rover Sport',
-    'Jaguar F-Pace',
-    'Bentley Bentayga',
-    'Tesla Model X',
-    'Ferrari 488',
-    'Lamborghini Urus',
-    'Maserati Levante',
-    'Rolls-Royce Cullinan',
-    'Cadillac Escalade',
-    'Infiniti QX80',
-    'Volvo XC90',
-    'Genesis GV80'
-  ];
 
   const getRandomItem = (array) => {
     return array[Math.floor(Math.random() * array.length)];
@@ -246,7 +270,7 @@ function App() {
       clearInterval(progressInterval);
       clearInterval(textInterval);
     };
-  }, [showProgress]);
+  }, [showProgress, cars, employees, funnyTexts]);
 
   const handleConvert = async () => {
     if (!file) {
@@ -265,7 +289,17 @@ function App() {
     // Запускаем конвертацию параллельно с прогресс баром
     try {
       console.log('Начало конвертации файла:', file.name);
-      const response = await convertExcelToWord(file, applyDiscount ? discountPercentage : null, makeShortVersion, includeVAT);
+      const response = await convertExcelToWord(
+        file, 
+        applyDiscount ? discountPercentage : null, 
+        makeShortVersion, 
+        includeVAT,
+        rbtChecked,
+        extraExpenses,
+        rbtDiscount ? parseFloat(rbtDiscount) : null,
+        pricePerSqm ? parseFloat(pricePerSqm) : 14000,
+        subsystemPercentage ? parseFloat(subsystemPercentage) : 15
+      );
       console.log('Ответ получен:', response);
 
       // После получения ответа просто ждем небольшую задержку, чтобы был виден прогресс
@@ -273,12 +307,26 @@ function App() {
       
       // Небольшая задержка для лучшего UX
       setTimeout(() => {
-        // Скачиваем файл
-        const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+        // Определяем тип файла по заголовкам ответа
+        const contentType = response.headers['content-type'] || response.headers['Content-Type'];
+        console.log('Content-Type:', contentType);
+        
+        let blob, filename;
+        
+        if (contentType && contentType.includes('application/zip')) {
+          // ZIP файл с двумя документами
+          blob = new Blob([response.data], { type: 'application/zip' });
+          filename = 'offers.zip';
+        } else {
+          // Обычный Word документ
+          blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+          filename = 'converted.docx';
+        }
+        
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'converted.docx';
+        a.download = filename;
         a.click();
         window.URL.revokeObjectURL(url);
         console.log('Файл успешно сконвертирован и скачан');
@@ -306,6 +354,14 @@ function App() {
   return (
     <Container className={classes.container}>
       <img src="/logo.png" alt="Logo" className={classes.logo} />
+      
+      <Button 
+        className={classes.newConverterButton}
+        component="a"
+        href="/converter/"
+      >
+        Перейти к новому конвертеру (BETA)
+      </Button>
       
       <Paper className={classes.paper} elevation={0}>
         <Typography variant="h4" className={classes.title}>
@@ -363,6 +419,99 @@ function App() {
             }
             label="С НДС"
           />
+          
+          <FormControlLabel
+            className={classes.checkboxItem}
+            control={
+              <Checkbox
+                checked={rbtChecked}
+                onChange={(e) => setRbtChecked(e.target.checked)}
+                color="primary"
+              />
+            }
+            label="РБТ"
+          />
+          
+          {rbtChecked && (
+            <>
+              <TextField
+                className={classes.discountInput}
+                label="Цена за м. кв."
+                type="number"
+                value={pricePerSqm}
+                onChange={(e) => setPricePerSqm(e.target.value)}
+                variant="outlined"
+                size="small"
+                placeholder="14000"
+              />
+              <Box style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                <TextField
+                  className={classes.discountInput}
+                  label="Подсистема"
+                  type="text"
+                  value="Алюминиевая подсистема и крепежи"
+                  variant="outlined"
+                  size="small"
+                  style={{ flex: 2 }}
+                  disabled
+                />
+                <TextField
+                  className={classes.discountInput}
+                  label="Процент (%)"
+                  type="number"
+                  value={subsystemPercentage}
+                  onChange={(e) => setSubsystemPercentage(e.target.value)}
+                  variant="outlined"
+                  size="small"
+                  style={{ flex: 1 }}
+                  placeholder="15"
+                />
+              </Box>
+              {['1', '2', '3', '4'].map((num, index) => (
+                <Box key={num} style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                  <TextField
+                    className={classes.discountInput}
+                    label={`Доп. расход ${num}`}
+                    type="text"
+                    value={extraExpenses[index].name}
+                    onChange={(e) => {
+                      const newExpenses = [...extraExpenses];
+                      newExpenses[index].name = e.target.value;
+                      setExtraExpenses(newExpenses);
+                    }}
+                    variant="outlined"
+                    size="small"
+                    style={{ flex: 2 }}
+                  />
+                  <TextField
+                    className={classes.discountInput}
+                    label="Сумма"
+                    type="number"
+                    value={extraExpenses[index].amount}
+                    onChange={(e) => {
+                      const newExpenses = [...extraExpenses];
+                      newExpenses[index].amount = e.target.value;
+                      setExtraExpenses(newExpenses);
+                    }}
+                    variant="outlined"
+                    size="small"
+                    style={{ flex: 1 }}
+                    placeholder="руб."
+                  />
+                </Box>
+              ))}
+              <TextField
+                className={classes.discountInput}
+                label="Скидка для РБТ (%)"
+                type="number"
+                value={rbtDiscount}
+                onChange={(e) => setRbtDiscount(e.target.value)}
+                variant="outlined"
+                size="small"
+                placeholder="Например: 10"
+              />
+            </>
+          )}
         </Box>
         
         {showProgress && (

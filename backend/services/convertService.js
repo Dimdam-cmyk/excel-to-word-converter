@@ -111,7 +111,7 @@ function numberToWordsRubles(num) {
   }
 }
 
-exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersion, originalFileName, includeVAT = false) => {
+exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersion, originalFileName, includeVAT = false, rbtChecked = false, extraExpenses = [], rbtDiscount = null, pricePerSqm = 14000, subsystemPercentage = 15) => {
   console.log('=== Начало конвертации ===');
   console.log('Параметры:');
   console.log('- filePath:', filePath);
@@ -119,6 +119,11 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
   console.log('- makeShortVersion:', makeShortVersion);
   console.log('- originalFileName:', originalFileName);
   console.log('- includeVAT:', includeVAT);
+  console.log('- rbtChecked:', rbtChecked);
+  console.log('- extraExpenses:', extraExpenses);
+  console.log('- rbtDiscount:', rbtDiscount);
+  console.log('- pricePerSqm:', pricePerSqm);
+  console.log('- subsystemPercentage:', subsystemPercentage);
 
   try {
     const workbook = new ExcelJS.Workbook();
@@ -1039,11 +1044,15 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
     console.log('Таблица "Стоимость форм и заливки" добавлена в документ Word');
 
     // Добавляем итоговую сумму
+    // Константы НДС: используем ставку 22% и формулу выделения НДС из суммы "с НДС"
+    // VAT = Gross * rate / (1 + rate)
+    const VAT_RATE = 0.22;
+    const VAT_PERCENT = 22;
     children.push(
       new docx.Paragraph({
         children: [
           new docx.TextRun({
-            text: `Итого стоимость производства составляет ${formatNumber(totalSum)} руб. (${numberToWordsRubles(Math.round(totalSum))}${includeVAT ? ' включая НДС 20%' : ' без НДС'})`,
+            text: `Итого стоимость производства составляет ${formatNumber(totalSum)} руб. (${numberToWordsRubles(Math.round(totalSum))}${includeVAT ? ` включая НДС ${VAT_PERCENT}%` : ' без НДС'})`,
             bold: true,
           }),
         ],
@@ -1053,13 +1062,13 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
 
     // Добавляем сумму НДС если чекбокс активирован
     if (includeVAT) {
-      // Рассчитываем НДС (20% от общей суммы)
-      const vatAmount = totalSum * 0.2 / 1.2; // НДС составляет 20% от суммы без НДС
+      // Рассчитываем НДС (22% от общей суммы)
+      const vatAmount = totalSum * VAT_RATE / (1 + VAT_RATE);
       children.push(
         new docx.Paragraph({
           children: [
             new docx.TextRun({
-              text: `В том числе НДС 20%: ${formatNumber(vatAmount)} руб.`,
+              text: `В том числе НДС ${VAT_PERCENT}%: ${formatNumber(vatAmount)} руб.`,
               bold: true,
             }),
           ],
@@ -1078,7 +1087,7 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
         new docx.Paragraph({
           children: [
             new docx.TextRun({
-              text: `Цена со скидкой ${discountPercentage}%: ${formatNumber(discountedTotal)} руб. (${numberToWordsRubles(Math.round(discountedTotal))}${includeVAT ? ' включая НДС 20%' : ' без НДС'})`,
+              text: `Цена со скидкой ${discountPercentage}%: ${formatNumber(discountedTotal)} руб. (${numberToWordsRubles(Math.round(discountedTotal))}${includeVAT ? ` включая НДС ${VAT_PERCENT}%` : ' без НДС'})`,
               bold: true,
             }),
           ],
@@ -1088,13 +1097,13 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
 
       // Добавляем сумму НДС для цены со скидкой, если чекбокс активирован
       if (includeVAT) {
-        // Рассчитываем НДС (20% от суммы со скидкой)
-        const vatAmountWithDiscount = discountedTotal * 0.2 / 1.2; // НДС составляет 20% от суммы без НДС
+        // Рассчитываем НДС (22% от суммы со скидкой)
+        const vatAmountWithDiscount = discountedTotal * VAT_RATE / (1 + VAT_RATE);
         children.push(
           new docx.Paragraph({
             children: [
               new docx.TextRun({
-                text: `В том числе НДС 20%: ${formatNumber(vatAmountWithDiscount)} руб.`,
+                text: `В том числе НДС ${VAT_PERCENT}%: ${formatNumber(vatAmountWithDiscount)} руб.`,
                 bold: true,
               }),
             ],
@@ -1261,8 +1270,51 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
     const buffer = await docx.Packer.toBuffer(doc);
     console.log('Буфер документа Word создан');
 
+    // Если включен РБТ, создаем дополнительный Word документ для монтажа
+    let mountingWordBuffer = null;
+    if (rbtChecked) {
+      console.log('Создание Word документа для монтажного коммерческого предложения');
+      
+      // Рассчитываем общую площадь для монтажа
+      let totalArea = 0;
+      let rowCount = 0;
+      if (groupedRows && Array.isArray(groupedRows)) {
+        groupedRows.forEach((group, groupIndex) => {
+          group.forEach((row, rowIndex) => {
+            const nomenclature = getCellValue(row.getCell('B'));
+            const area = parseFloat(getCellValue(row.getCell('J'))) || 0;
+            
+            // Пропускаем строки с итоговыми значениями или пустыми номенклатурами
+            if (!nomenclature || nomenclature.trim() === '' || 
+                nomenclature.includes('Итого') || 
+                nomenclature.includes('итого') ||
+                nomenclature.includes('ИТОГО')) {
+              console.log(`Пропускаем итоговую строку: ${nomenclature}, площадь: ${area}`);
+              return;
+            }
+            
+            console.log(`Группа ${groupIndex}, строка ${rowIndex}: ${nomenclature}, площадь: ${area}`);
+            totalArea += area;
+            rowCount++;
+          });
+        });
+      }
+      console.log(`Всего обработано строк: ${rowCount}, общая площадь: ${totalArea}`);
+      const totalMountingCost = totalArea * pricePerSqm;
+      console.log(`Цена за м.кв.: ${pricePerSqm}, общая стоимость монтажа: ${totalMountingCost}`);
+      
+      mountingWordBuffer = await createMountingWord(workbook, groupedRows, extraExpenses, rbtDiscount, originalFileName, pricePerSqm, totalMountingCost, subsystemPercentage);
+      console.log('Word документ для монтажа создан');
+    }
+
     fs.unlinkSync(filePath);
     console.log('Временный файл Excel удален');
+    
+    // Возвращаем оба файла если есть РБТ
+    if (mountingWordBuffer) {
+      return { wordBuffer: buffer, pdfBuffer: mountingWordBuffer };
+    }
+    
     return buffer;
   } catch (error) {
     console.error('Ошибка в процессе конвертации:', error);
@@ -1307,6 +1359,670 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
     }
   }
 };
+
+// Функция для создания Word документа с монтажным коммерческим предложением
+async function createMountingWord(workbook, groupedRows, extraExpenses, rbtDiscount, originalFileName, pricePerSqm = 14000, totalMountingCost = 0, subsystemPercentage = 15) {
+  try {
+    const doc = new docx.Document({
+      styles: {
+        paragraphStyles: [
+          {
+            id: "mountingTitleStyle",
+            name: "Mounting Title Style",
+            basedOn: "Normal",
+            next: "Normal",
+            quickFormat: true,
+            run: {
+              size: 28, // 14 пунктов
+              bold: true,
+            },
+            paragraph: {
+              alignment: docx.AlignmentType.CENTER,
+            },
+          },
+          {
+            id: "mountingHeaderStyle",
+            name: "Mounting Header Style",
+            basedOn: "Normal",
+            run: {
+              size: 22, // 11 пунктов
+              bold: true,
+            },
+          },
+        ],
+      },
+      sections: []
+    });
+
+    const children = [];
+    
+    // Получаем имя файла без расширения
+    const fileId = originalFileName ? path.parse(originalFileName).name : 'unknown';
+
+    // Добавляем заголовок
+    children.push(
+      new docx.Paragraph({
+        children: [
+          new docx.TextRun({
+            text: `Коммерческое предложение на монтаж фасадного декора`,
+            bold: true,
+            size: 28,
+          }),
+        ],
+        alignment: docx.AlignmentType.CENTER,
+        spacing: { after: 300, before: 0 },
+      })
+    );
+
+    children.push(
+      new docx.Paragraph({
+        children: [
+          new docx.TextRun({
+            text: `Проект: ${fileId}`,
+            bold: true,
+            size: 24,
+          }),
+        ],
+        alignment: docx.AlignmentType.CENTER,
+        spacing: { after: 400, before: 0 },
+      })
+    );
+
+    // Создаем таблицу для монтажа
+    let tableRows = [];
+
+    // Заголовок таблицы
+    const headerRow = new docx.TableRow({
+      children: [
+        new docx.TableCell({
+          children: [new docx.Paragraph({ text: 'Номенклатура', bold: true, alignment: docx.AlignmentType.CENTER })],
+          alignment: docx.AlignmentType.CENTER,
+          verticalAlign: docx.VerticalAlign.CENTER,
+          shading: { fill: "D3D3D3" }
+        }),
+        new docx.TableCell({
+          children: [new docx.Paragraph({ text: 'Кол-во изделий, шт.', bold: true, alignment: docx.AlignmentType.CENTER })],
+          alignment: docx.AlignmentType.CENTER,
+          verticalAlign: docx.VerticalAlign.CENTER,
+          shading: { fill: "D3D3D3" }
+        }),
+        new docx.TableCell({
+          children: [new docx.Paragraph({ text: 'Площадь развертки, м²', bold: true, alignment: docx.AlignmentType.CENTER })],
+          alignment: docx.AlignmentType.CENTER,
+          verticalAlign: docx.VerticalAlign.CENTER,
+          shading: { fill: "D3D3D3" }
+        }),
+        new docx.TableCell({
+          children: [new docx.Paragraph({ text: 'Стоимость монтажа, руб.', bold: true, alignment: docx.AlignmentType.CENTER })],
+          alignment: docx.AlignmentType.CENTER,
+          verticalAlign: docx.VerticalAlign.CENTER,
+          shading: { fill: "D3D3D3" }
+        }),
+      ],
+    });
+    tableRows.push(headerRow);
+
+    // Добавляем данные
+    let isEvenRow = false;
+    if (groupedRows && Array.isArray(groupedRows)) {
+      groupedRows.forEach(group => {
+        group.forEach(row => {
+          const nomenclature = getCellValue(row.getCell('B'));
+          
+          // Пропускаем строки с итоговыми значениями или пустыми номенклатурами
+          if (!nomenclature || nomenclature.trim() === '' || 
+              nomenclature.includes('Итого') || 
+              nomenclature.includes('итого') ||
+              nomenclature.includes('ИТОГО')) {
+            return;
+          }
+          
+          isEvenRow = !isEvenRow;
+          const shading = isEvenRow ? { fill: "F2F2F2" } : undefined;
+          
+          const quantity = getCellValue(row.getCell('G'));
+          const area = parseFloat(getCellValue(row.getCell('J'))) || 0;
+          const mountingCost = area * pricePerSqm; // площадь × цена за м.кв.
+          
+          const tableRow = new docx.TableRow({
+            children: [
+              new docx.TableCell({
+                children: [new docx.Paragraph({ text: nomenclature, alignment: docx.AlignmentType.LEFT })],
+                verticalAlign: docx.VerticalAlign.CENTER,
+                shading
+              }),
+              new docx.TableCell({
+                children: [new docx.Paragraph({ text: quantity, alignment: docx.AlignmentType.CENTER })],
+                verticalAlign: docx.VerticalAlign.CENTER,
+                shading
+              }),
+              new docx.TableCell({
+                children: [new docx.Paragraph({ text: formatNumber(area, 2), alignment: docx.AlignmentType.CENTER })],
+                verticalAlign: docx.VerticalAlign.CENTER,
+                shading
+              }),
+              new docx.TableCell({
+                children: [new docx.Paragraph({ text: formatNumber(mountingCost, 2), alignment: docx.AlignmentType.CENTER })],
+                verticalAlign: docx.VerticalAlign.CENTER,
+                shading
+              }),
+            ],
+          });
+          tableRows.push(tableRow);
+        });
+      });
+    }
+
+    // Создаем таблицу
+    const mountingTable = new docx.Table({
+      rows: tableRows,
+      width: {
+        size: 100,
+        type: docx.WidthType.PERCENTAGE,
+      },
+    });
+
+    children.push(mountingTable);
+
+    // Добавляем небольшой отступ
+    children.push(
+      new docx.Paragraph({
+        children: [],
+        spacing: { before: 200, after: 100 },
+      })
+    );
+
+    // Добавляем строку "Итого по монтажу изделий" в виде таблицы для единого стиля
+    const totalMountingRow = new docx.TableRow({
+      children: [
+        new docx.TableCell({
+          children: [new docx.Paragraph({ 
+            children: [new docx.TextRun({ text: 'Итого по монтажу изделий:', bold: true })],
+            alignment: docx.AlignmentType.RIGHT 
+          })],
+          verticalAlign: docx.VerticalAlign.CENTER,
+          shading: { fill: "E8F4FD" },
+          width: { size: 70, type: docx.WidthType.PERCENTAGE }
+        }),
+        new docx.TableCell({
+          children: [new docx.Paragraph({ 
+            children: [new docx.TextRun({ text: formatNumber(totalMountingCost, 2) + ' руб.', bold: true })],
+            alignment: docx.AlignmentType.CENTER 
+          })],
+          verticalAlign: docx.VerticalAlign.CENTER,
+          shading: { fill: "E8F4FD" },
+          width: { size: 30, type: docx.WidthType.PERCENTAGE }
+        }),
+      ],
+    });
+
+    const totalMountingTable = new docx.Table({
+      rows: [totalMountingRow],
+      width: {
+        size: 100,
+        type: docx.WidthType.PERCENTAGE,
+      },
+    });
+
+    children.push(totalMountingTable);
+
+    // Добавляем дополнительные расходы как таблицу если есть
+    let extraExpensesTotal = 0;
+    
+    // Автоматически добавляем алюминиевую подсистему (задаваемый процент от стоимости монтажа)
+    const aluminumCost = totalMountingCost * (subsystemPercentage / 100);
+    extraExpensesTotal += aluminumCost;
+    
+    // Проверяем, есть ли дополнительные расходы от пользователя
+    const hasUserExpenses = extraExpenses && extraExpenses.length > 0 && extraExpenses.some(expense => {
+      if (typeof expense === 'string') return expense && expense.trim();
+      if (expense && typeof expense === 'object') return expense.name && expense.name.trim();
+      return false;
+    });
+    
+    // Всегда показываем таблицу расходов, так как есть автоматическая строка с алюминием
+    const hasExpenses = true;
+
+    if (hasExpenses) {
+        children.push(
+          new docx.Paragraph({
+            children: [
+              new docx.TextRun({
+                text: "Дополнительные расходы",
+                bold: true,
+                size: 24,
+              }),
+            ],
+            alignment: docx.AlignmentType.CENTER,
+            spacing: { before: 400, after: 300 },
+          })
+        );
+
+        // Создаем таблицу для дополнительных расходов
+        let expenseTableRows = [];
+        
+        // Заголовок таблицы
+        const expenseHeaderRow = new docx.TableRow({
+          children: [
+            new docx.TableCell({
+              children: [new docx.Paragraph({ text: 'Наименование расхода', bold: true, alignment: docx.AlignmentType.CENTER })],
+              alignment: docx.AlignmentType.CENTER,
+              verticalAlign: docx.VerticalAlign.CENTER,
+              shading: { fill: "D3D3D3" },
+              width: { size: 70, type: docx.WidthType.PERCENTAGE }
+            }),
+            new docx.TableCell({
+              children: [new docx.Paragraph({ text: 'Сумма, руб.', bold: true, alignment: docx.AlignmentType.CENTER })],
+              alignment: docx.AlignmentType.CENTER,
+              verticalAlign: docx.VerticalAlign.CENTER,
+              shading: { fill: "D3D3D3" },
+              width: { size: 30, type: docx.WidthType.PERCENTAGE }
+            }),
+          ],
+        });
+        expenseTableRows.push(expenseHeaderRow);
+
+        // Добавляем автоматическую строку с алюминиевой подсистемой
+        let expenseRowIndex = 0;
+        
+        // Первая строка - алюминиевая подсистема (автоматически)
+        expenseRowIndex++;
+        const aluminumRow = new docx.TableRow({
+          children: [
+            new docx.TableCell({
+              children: [new docx.Paragraph({ text: 'Алюминиевая подсистема и крепежи', alignment: docx.AlignmentType.LEFT })],
+              verticalAlign: docx.VerticalAlign.CENTER,
+              shading: { fill: "E8F4FD" } // Светло-голубой фон для автоматической строки
+            }),
+            new docx.TableCell({
+              children: [new docx.Paragraph({ 
+                text: formatNumber(aluminumCost, 2), 
+                alignment: docx.AlignmentType.CENTER 
+              })],
+              verticalAlign: docx.VerticalAlign.CENTER,
+              shading: { fill: "E8F4FD" }
+            }),
+          ],
+        });
+        expenseTableRows.push(aluminumRow);
+        
+        // Добавляем пользовательские расходы
+        if (hasUserExpenses) {
+          extraExpenses.forEach((expense, index) => {
+          // Поддержка старого формата (строки) и нового формата (объекты)
+          let name, amount;
+          if (typeof expense === 'string') {
+            name = expense;
+            amount = 0;
+          } else if (expense && typeof expense === 'object') {
+            name = expense.name || `Доп. расход ${index + 1}`;
+            amount = parseFloat(expense.amount) || 0;
+          } else {
+            return;
+          }
+          
+          if (name && name.trim()) {
+            extraExpensesTotal += amount;
+            expenseRowIndex++;
+            
+            const isEvenExpenseRow = expenseRowIndex % 2 === 0;
+            const expenseShading = isEvenExpenseRow ? { fill: "F2F2F2" } : undefined;
+            
+            const expenseRow = new docx.TableRow({
+              children: [
+                new docx.TableCell({
+                  children: [new docx.Paragraph({ text: name, alignment: docx.AlignmentType.LEFT })],
+                  verticalAlign: docx.VerticalAlign.CENTER,
+                  shading: expenseShading
+                }),
+                new docx.TableCell({
+                  children: [new docx.Paragraph({ 
+                    text: amount > 0 ? formatNumber(amount, 2) : '—', 
+                    alignment: docx.AlignmentType.CENTER 
+                  })],
+                  verticalAlign: docx.VerticalAlign.CENTER,
+                  shading: expenseShading
+                }),
+              ],
+            });
+            expenseTableRows.push(expenseRow);
+          }
+        });
+        }
+        
+        // Итоговая строка для расходов
+        if (extraExpensesTotal > 0) {
+          const expenseTotalRow = new docx.TableRow({
+            children: [
+              new docx.TableCell({
+                children: [new docx.Paragraph({ 
+                  children: [new docx.TextRun({ text: 'Итого дополнительные расходы:', bold: true })],
+                  alignment: docx.AlignmentType.RIGHT 
+                })],
+                verticalAlign: docx.VerticalAlign.CENTER,
+                shading: { fill: "DDE8F6" }
+              }),
+              new docx.TableCell({
+                children: [new docx.Paragraph({ 
+                  children: [new docx.TextRun({ text: formatNumber(extraExpensesTotal, 2), bold: true })],
+                  alignment: docx.AlignmentType.CENTER 
+                })],
+                verticalAlign: docx.VerticalAlign.CENTER,
+                shading: { fill: "DDE8F6" }
+              }),
+            ],
+          });
+          expenseTableRows.push(expenseTotalRow);
+        }
+
+        // Создаем таблицу расходов
+        const expenseTable = new docx.Table({
+          rows: expenseTableRows,
+          width: {
+            size: 100,
+            type: docx.WidthType.PERCENTAGE,
+          },
+        });
+
+        children.push(expenseTable);
+    }
+
+    // Итоговые расчеты в виде красивой таблицы
+    const totalWithExpenses = totalMountingCost + extraExpensesTotal;
+    let finalTotal = totalWithExpenses;
+    
+    children.push(
+      new docx.Paragraph({
+        children: [
+          new docx.TextRun({
+            text: "Итоговый расчет",
+            bold: true,
+            size: 24,
+          }),
+        ],
+        alignment: docx.AlignmentType.CENTER,
+        spacing: { before: 400, after: 300 },
+      })
+    );
+
+    // Создаем таблицу итогового расчета
+    let totalTableRows = [];
+    
+    // Стоимость монтажа
+    const mountingRow = new docx.TableRow({
+      children: [
+        new docx.TableCell({
+          children: [new docx.Paragraph({ text: 'Стоимость монтажа', alignment: docx.AlignmentType.LEFT })],
+          verticalAlign: docx.VerticalAlign.CENTER,
+          width: { size: 70, type: docx.WidthType.PERCENTAGE }
+        }),
+        new docx.TableCell({
+          children: [new docx.Paragraph({ text: formatNumber(totalMountingCost, 2) + ' руб.', alignment: docx.AlignmentType.CENTER })],
+          verticalAlign: docx.VerticalAlign.CENTER,
+          width: { size: 30, type: docx.WidthType.PERCENTAGE }
+        }),
+      ],
+    });
+    totalTableRows.push(mountingRow);
+
+    // Дополнительные расходы если есть
+    if (extraExpensesTotal > 0) {
+      const expensesRow = new docx.TableRow({
+        children: [
+          new docx.TableCell({
+            children: [new docx.Paragraph({ text: 'Итого дополнительные расходы', alignment: docx.AlignmentType.LEFT })],
+            verticalAlign: docx.VerticalAlign.CENTER
+          }),
+          new docx.TableCell({
+            children: [new docx.Paragraph({ text: formatNumber(extraExpensesTotal, 2) + ' руб.', alignment: docx.AlignmentType.CENTER })],
+            verticalAlign: docx.VerticalAlign.CENTER
+          }),
+        ],
+      });
+      totalTableRows.push(expensesRow);
+      
+      const subtotalRow = new docx.TableRow({
+        children: [
+          new docx.TableCell({
+            children: [new docx.Paragraph({ 
+              children: [new docx.TextRun({ text: 'Итого монтаж под ключ', bold: true })],
+              alignment: docx.AlignmentType.LEFT 
+            })],
+            verticalAlign: docx.VerticalAlign.CENTER,
+            shading: { fill: "F2F2F2" }
+          }),
+          new docx.TableCell({
+            children: [new docx.Paragraph({ 
+              children: [new docx.TextRun({ text: formatNumber(totalWithExpenses, 2) + ' руб.', bold: true })],
+              alignment: docx.AlignmentType.CENTER 
+            })],
+            verticalAlign: docx.VerticalAlign.CENTER,
+            shading: { fill: "F2F2F2" }
+          }),
+        ],
+      });
+      totalTableRows.push(subtotalRow);
+    }
+    
+    // Скидка если есть
+    if (rbtDiscount && rbtDiscount > 0) {
+      const discountAmount = totalWithExpenses * (rbtDiscount / 100);
+      finalTotal = totalWithExpenses - discountAmount;
+      
+      const discountRow = new docx.TableRow({
+        children: [
+          new docx.TableCell({
+            children: [new docx.Paragraph({ text: `Скидка ${rbtDiscount}%`, alignment: docx.AlignmentType.LEFT })],
+            verticalAlign: docx.VerticalAlign.CENTER
+          }),
+          new docx.TableCell({
+            children: [new docx.Paragraph({ text: '- ' + formatNumber(discountAmount, 2) + ' руб.', alignment: docx.AlignmentType.CENTER })],
+            verticalAlign: docx.VerticalAlign.CENTER
+          }),
+        ],
+      });
+      totalTableRows.push(discountRow);
+    }
+    
+    // Финальная итоговая строка
+    const finalRow = new docx.TableRow({
+      children: [
+        new docx.TableCell({
+          children: [new docx.Paragraph({ 
+            children: [new docx.TextRun({ text: 'Итого монтаж под ключ', bold: true, size: 24 })],
+            alignment: docx.AlignmentType.LEFT 
+          })],
+          verticalAlign: docx.VerticalAlign.CENTER,
+          shading: { fill: "DDE8F6" }
+        }),
+        new docx.TableCell({
+          children: [new docx.Paragraph({ 
+            children: [new docx.TextRun({ text: formatNumber(finalTotal, 2) + ' руб.', bold: true, size: 24 })],
+            alignment: docx.AlignmentType.CENTER 
+          })],
+          verticalAlign: docx.VerticalAlign.CENTER,
+          shading: { fill: "DDE8F6" }
+        }),
+      ],
+    });
+    totalTableRows.push(finalRow);
+
+    // Создаем итоговую таблицу
+    const totalTable = new docx.Table({
+      rows: totalTableRows,
+      width: {
+        size: 100,
+        type: docx.WidthType.PERCENTAGE,
+      },
+    });
+
+    children.push(totalTable);
+    
+    // Добавляем сумму прописью
+    children.push(
+      new docx.Paragraph({
+        children: [
+          new docx.TextRun({
+            text: `(${numberToWordsRubles(Math.round(finalTotal))})`,
+            italics: true,
+            size: 22,
+          }),
+        ],
+        alignment: docx.AlignmentType.CENTER,
+        spacing: { before: 200, after: 400 },
+      })
+    );
+
+    // Добавляем примечания
+
+    // Добавляем таблицу с примечаниями
+    const notesTableRows = [];
+    
+    // Заголовок примечаний
+    children.push(
+      new docx.Paragraph({
+        children: [
+          new docx.TextRun({
+            text: "В стоимость включено:",
+            bold: true,
+            size: 22,
+          }),
+        ],
+        spacing: { before: 400, after: 200 },
+      })
+    );
+
+    const includedText = `Уборка мусора в контейнер.
+Доставка всех материалов для монтажа на объект (подсистема, расходные материалы) за исключением изделий.
+Доставка, аренда и сборка лесов.`;
+
+    children.push(
+      new docx.Paragraph({
+        text: includedText,
+        spacing: { before: 100, after: 300 },
+      })
+    );
+
+    children.push(
+      new docx.Paragraph({
+        children: [
+          new docx.TextRun({
+            text: "В стоимость НЕ включено:",
+            bold: true,
+            size: 22,
+          }),
+        ],
+        spacing: { before: 200, after: 200 },
+      })
+    );
+
+    const notIncludedText = `Работы по возведению несущих конструкций из кирпича и горячекатанного металла.
+Сварочные работы.
+Малярные работы.
+Электромонтажные работы.
+Земельные работы.`;
+
+    children.push(
+      new docx.Paragraph({
+        text: notIncludedText,
+        spacing: { before: 100, after: 300 },
+      })
+    );
+
+    children.push(
+      new docx.Paragraph({
+        children: [
+          new docx.TextRun({
+            text: "Примечание:",
+            bold: true,
+            size: 22,
+          }),
+        ],
+        spacing: { before: 200, after: 200 },
+      })
+    );
+
+    const noteText = `В стоимость монтажа входят все работы связанные с установкой изделий на фасад, дополнительными работами считаются работы которые возникают в процессе монтажа по причине вмешательства смежных бригад или просьб заказчика.`;
+
+    children.push(
+      new docx.Paragraph({
+        children: [
+          new docx.TextRun({
+            text: noteText,
+            italics: true,
+          }),
+        ],
+        spacing: { before: 100, after: 300 },
+      })
+    );
+
+    children.push(
+      new docx.Paragraph({
+        children: [
+          new docx.TextRun({
+            text: "Форма оплаты - наличный расчет",
+            bold: true,
+            underline: {},
+            size: 22,
+          }),
+        ],
+        spacing: { before: 400, after: 200 },
+      })
+    );
+
+    // Получаем текущую дату
+    const currentDate = new Date().toLocaleDateString('ru-RU');
+
+    // Добавляем секцию с вертикальной ориентацией
+    doc.addSection({
+      properties: {
+        page: {
+          size: {
+            width: convertMillimetersToTwip(210), // A4 ширина в портретной ориентации
+            height: convertMillimetersToTwip(297), // A4 высота в портретной ориентации
+          },
+          orientation: docx.PageOrientation.PORTRAIT, // Вертикальная ориентация
+          margins: {
+            top: convertMillimetersToTwip(20),
+            right: convertMillimetersToTwip(15),
+            bottom: convertMillimetersToTwip(20),
+            left: convertMillimetersToTwip(15),
+          },
+        },
+      },
+      headers: {
+        default: new docx.Header({
+          children: [
+            new docx.Paragraph({
+              text: `Дата составления предложения ${currentDate}`,
+              alignment: docx.AlignmentType.RIGHT,
+            }),
+          ],
+        }),
+      },
+      footers: {
+        default: new docx.Footer({
+          children: [
+            new docx.Paragraph({
+              text: "Предложение действительно 25 дней. Расчет является предварительным.",
+              alignment: docx.AlignmentType.CENTER,
+            }),
+          ],
+        }),
+      },
+      children: children,
+    });
+
+    console.log('Создание буфера документа Word для монтажа');
+    const buffer = await docx.Packer.toBuffer(doc);
+    console.log('Буфер документа Word для монтажа создан');
+    
+    return buffer;
+  } catch (error) {
+    console.error('Ошибка при создании Word документа для монтажа:', error);
+    throw error;
+  }
+}
 
 function getCellValue(cell) {
   if (!cell) return '';
