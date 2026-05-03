@@ -6,6 +6,14 @@ const convertRouter = require('./routes/convert');
 
 const app = express();
 const port = process.env.PORT || 5001;
+const uploadsDir = path.join(__dirname, 'uploads');
+const outputDir = path.join(__dirname, 'output');
+
+for (const dir of [uploadsDir, outputDir]) {
+  if (!require('fs').existsSync(dir)) {
+    require('fs').mkdirSync(dir, { recursive: true });
+  }
+}
 
 // Настройка CORS
 app.use(cors({
@@ -34,7 +42,7 @@ app.use((req, res, next) => {
 
 // Настройка multer для загрузки файлов
 const upload = multer({ 
-  dest: 'uploads/',
+  dest: uploadsDir,
   fileFilter: (req, file, cb) => {
     if (file.mimetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") {
       cb(null, true);

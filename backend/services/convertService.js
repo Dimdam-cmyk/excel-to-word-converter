@@ -225,7 +225,10 @@ exports.convertExcelToWord = async (filePath, discountPercentage, makeShortVersi
     );
 
     // Добавляем таблицу с данными
-    const worksheet = workbook.getWorksheet(1);
+    const worksheet = workbook.worksheets[0];
+    if (!worksheet) {
+      throw new Error('В Excel-файле не найден ни один лист');
+    }
     let tableRows = [];
     let totalSum = 0;
 
